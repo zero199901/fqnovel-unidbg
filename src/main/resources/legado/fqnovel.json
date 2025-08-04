@@ -1,0 +1,60 @@
+[
+    {
+        "bookSourceComment": "FQNovel-unidbg书源",
+        "bookSourceGroup": "FQNovel",
+        "bookSourceName": "FQNovel-unidbg",
+        "bookSourceType": 0,
+        "bookSourceUrl": "http://替换为搭建的IP:9999",
+        "customOrder": 2,
+        "enabled": true,
+        "enabledCookieJar": true,
+        "enabledExplore": true,
+        "exploreUrl": "搜索::http://替换为搭建的IP:9999/api/fqsearch/books?query={{key}}&offset={{(page-1)*20}}&count=20",
+        "header": "Content-Type: application/json\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "lastUpdateTime": 1754302417608,
+        "respondTime": 180000,
+        "ruleBookInfo": {
+            "author": "$.data.author",
+            "coverUrl": "$.data.coverUrl",
+            "intro": "$.data.description",
+            "kind": "$.data.category",
+            "lastChapter": "$.data.lastChapterTitle",
+            "name": "$.data.bookName",
+            "tocUrl": "http://替换为搭建的IP:9999/api/fqsearch/directory/{{$.data.bookId}}\n<js>\njava.put(\"book_id\", java.getString(\"$.data.bookId\"))\nresult\n</js>",
+            "wordCount": "$.data.wordNumber"
+        },
+        "ruleContent": {
+            "content": "$.data.txtContent",
+            "title": "$.data.title"
+        },
+        "ruleExplore": {
+            "author": "$.author",
+            "bookList": "$.data.books[*]",
+            "bookUrl": "http://替换为搭建的IP:9999/api/fqnovel/book/{{$.bookId}}",
+            "coverUrl": "$.coverUrl",
+            "intro": "$.description",
+            "kind": "$.category",
+            "lastChapter": "$.lastChapterTitle",
+            "name": "$.bookName",
+            "wordCount": "$.wordCount"
+        },
+        "ruleSearch": {
+            "author": "$.author",
+            "bookList": "$.data.books[*]",
+            "bookUrl": "http://替换为搭建的IP:9999/api/fqnovel/book/{{$.bookId}}",
+            "coverUrl": "$.coverUrl",
+            "intro": "$.description",
+            "kind": "$.category",
+            "lastChapter": "$.lastChapterTitle",
+            "name": "$.bookName\n<js>\n// 第一页时保存searchId\nif (java.get('current_page') == null || java.get('current_page') == '1') {\n    var searchId = java.getString('$..searchId');\n    if (searchId) {\n        java.put('search_id', searchId);\n    }\n}\nresult\n</js>",
+            "wordCount": "$.wordCount"
+        },
+        "ruleToc": {
+            "chapterList": "$.data.item_data_list[*]",
+            "chapterName": "$.title",
+            "chapterUrl": "@js:\nsource.bookSourceUrl + `/api/fqnovel/chapter/${java.get(\"book_id\")}/${java.getString(\"$.item_id\")}`"
+        },
+        "searchUrl": "http://替换为搭建的IP:9999/api/fqsearch/books?query={{key}}&offset={{(page-1)*20}}&count=20&tabType=3@js:\nvar currentPage = java.get('current_page') || '1';\njava.put('current_page', (parseInt(currentPage) + 1).toString());\nvar searchId = java.get('search_id');\nif (searchId && currentPage != '1') {\n    result + '&searchId=' + encodeURIComponent(searchId);\n} else {\n    result;\n}",
+        "weight": 0
+    }
+]

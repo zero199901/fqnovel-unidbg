@@ -1,0 +1,44 @@
+server:
+  port: 9999
+  address: 0.0.0.0
+
+application:
+  unidbg:
+    dynarmic: false
+    verbose: false
+    async: false
+
+# FQ API 配置
+fq:
+    api:
+        base-url: https://api5-normal-sinfonlineb.fqnovel.com
+        user-agent: com.dragon.read.oversea.gp/68132 (Linux; U; Android 10; zh_CN; OnePlus11; Build/V291IR;tt-ok/3.12.13.4-tiktok)
+        cookie: store-region=cn-zj; store-region-src=did; install_id=933935730456617
+        device:
+          aid: '1967'
+          cdid: 17f05006-423a-4172-be4b-7d26a42f2f4a
+          device-brand: OnePlus
+          device-id: '933935730452521'
+          device-type: OnePlus11
+          dpi: '640'
+          host-abi: arm64-v8a
+          install-id: '933935730456617'
+          resolution: 3200*1440
+          rom-version: V291IR+release-keys
+          update-version-code: '68132'
+          version-code: '68132'
+          version-name: 6.8.1.32
+
+
+spring:
+  application:
+    name: unidbg-boot-server
+  profiles:
+    active: dev
+  task:
+    execution:
+      pool:
+        allow-core-thread-timeout: true
+        core-size: 8
+        keep-alive: 60s
+        max-size: 8
