@@ -73,50 +73,131 @@ public class FQNovelService {
      * @param download 是否下载模式 (false=在线阅读, true=下载)
      * @return 批量内容响应
      */
+//    public CompletableFuture<FQNovelResponse<FqIBatchFullResponse>> batchFull(String itemIds, String bookId, boolean download) {
+//        return CompletableFuture.supplyAsync(() -> {
+//            try {
+//                FqVariable var = getDefaultFqVariable();
+//
+//                // 使用工具类构建URL和参数
+//                String url = fqApiUtils.getBaseUrl() + "/reading/reader/batch_full/v";
+//                Map<String, String> params = fqApiUtils.buildBatchFullParams(var, itemIds, bookId, download);
+//                String fullUrl = fqApiUtils.buildUrlWithParams(url, params);
+//
+//                // 使用工具类构建请求头
+//                Map<String, String> headers = fqApiUtils.buildCommonHeaders();
+//
+//                // 使用现有的签名服务生成签名
+//                Map<String, String> signedHeaders = fqEncryptServiceWorker.generateSignatureHeaders(fullUrl, headers).get();
+//
+//                // 发起API请求
+//                HttpHeaders httpHeaders = new HttpHeaders();
+//                signedHeaders.forEach(httpHeaders::set);
+//                headers.forEach(httpHeaders::set);
+//
+//                HttpEntity<String> entity = new HttpEntity<>(httpHeaders);
+//                ResponseEntity<byte[]> response = restTemplate.exchange(fullUrl, HttpMethod.GET, entity, byte[].class);
+//
+//                // 解压缩 GZIP 响应体
+//                String responseBody = "";
+//                try (GZIPInputStream gzipInputStream = new GZIPInputStream(new ByteArrayInputStream(response.getBody()))) {
+//                    ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+//                    byte[] buffer = new byte[1024];
+//                    int length;
+//                    while ((length = gzipInputStream.read(buffer)) != -1) {
+//                        byteArrayOutputStream.write(buffer, 0, length);
+//                    }
+//                    responseBody = new String(byteArrayOutputStream.toByteArray(), StandardCharsets.UTF_8);
+//                } catch (Exception e) {
+//                    log.error("GZIP 解压失败，原始响应体: {}", new String(response.getBody(), StandardCharsets.UTF_8), e);
+//                }
+//
+//                // 解析响应
+//                FqIBatchFullResponse batchResponse = objectMapper.readValue(responseBody, FqIBatchFullResponse.class);
+//                return FQNovelResponse.success(batchResponse);
+//
+//            } catch (Exception e) {
+//                log.error("批量获取章节内容失败 - itemIds: {}", itemIds, e);
+//                return FQNovelResponse.error("批量获取章节内容失败: " + e.getMessage());
+//            }
+//        });
+//    }
+
     public CompletableFuture<FQNovelResponse<FqIBatchFullResponse>> batchFull(String itemIds, String bookId, boolean download) {
         return CompletableFuture.supplyAsync(() -> {
-            try {
-                FqVariable var = getDefaultFqVariable();
+            int maxAttempts = 1;
+            for (int attempt = 0; attempt <= maxAttempts; attempt++) {
+                try {
+                    FqVariable var = getDefaultFqVariable();
+                    String url = fqApiUtils.getBaseUrl() + "/reading/reader/batch_full/v";
+                    Map<String, String> params = fqApiUtils.buildBatchFullParams(var, itemIds, bookId, download);
+                    String fullUrl = fqApiUtils.buildUrlWithParams(url, params);
 
-                // 使用工具类构建URL和参数
-                String url = fqApiUtils.getBaseUrl() + "/reading/reader/batch_full/v";
-                Map<String, String> params = fqApiUtils.buildBatchFullParams(var, itemIds, bookId, download);
-                String fullUrl = fqApiUtils.buildUrlWithParams(url, params);
+                    Map<String, String> headers = fqApiUtils.buildCommonHeaders();
+                    Map<String, String> signedHeaders = fqEncryptServiceWorker.generateSignatureHeaders(fullUrl, headers).get();
 
-                // 使用工具类构建请求头
-                Map<String, String> headers = fqApiUtils.buildCommonHeaders();
+                    HttpHeaders httpHeaders = new HttpHeaders();
+                    signedHeaders.forEach(httpHeaders::set);
+                    headers.forEach(httpHeaders::set);
 
-                // 使用现有的签名服务生成签名
-                Map<String, String> signedHeaders = fqEncryptServiceWorker.generateSignatureHeaders(fullUrl, headers).get();
+                    HttpEntity<String> entity = new HttpEntity<>(httpHeaders);
+                    ResponseEntity<byte[]> response = restTemplate.exchange(fullUrl, HttpMethod.GET, entity, byte[].class);
 
-                // 发起API请求
-                HttpHeaders httpHeaders = new HttpHeaders();
-                signedHeaders.forEach(httpHeaders::set);
-                headers.forEach(httpHeaders::set);
-
-                HttpEntity<String> entity = new HttpEntity<>(httpHeaders);
-                ResponseEntity<byte[]> response = restTemplate.exchange(fullUrl, HttpMethod.GET, entity, byte[].class);
-
-                // 解压缩 GZIP 响应体
-                String responseBody;
-                try (GZIPInputStream gzipInputStream = new GZIPInputStream(new ByteArrayInputStream(response.getBody()))) {
-                    ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-                    byte[] buffer = new byte[1024];
-                    int length;
-                    while ((length = gzipInputStream.read(buffer)) != -1) {
-                        byteArrayOutputStream.write(buffer, 0, length);
+                    byte[] body = response.getBody();
+                    boolean isGzip = false;
+                    List<String> contentEncoding = response.getHeaders().get("Content-Encoding");
+                    if (contentEncoding != null) {
+                        isGzip = contentEncoding.stream().anyMatch(e -> e.toLowerCase().contains("gzip"));
                     }
-                    responseBody = new String(byteArrayOutputStream.toByteArray(), StandardCharsets.UTF_8);
+                    // 简单判断GZIP头
+                    if (!isGzip && body != null && body.length >= 2 && body[0] == (byte)0x1f && body[1] == (byte)0x8b) {
+                        isGzip = true;
+                    }
+
+                    if (!isGzip) {
+                        // 非GZIP，解析JSON
+                        String rawBody = new String(body, StandardCharsets.UTF_8);
+                        ObjectMapper mapper = new ObjectMapper();
+                        JsonNode node = mapper.readTree(rawBody);
+                        int code = node.has("code") ? node.get("code").asInt() : -1;
+                        String message = node.has("message") ? node.get("message").asText() : "";
+                        if (code == 110 && "ILLEGAL_ACCESS".equals(message)) {
+                            log.warn("检测到ILLEGAL_ACCESS，尝试刷新registerkey，第{}次", attempt);
+                            try {
+                                registerKeyService.refreshRegisterKey();
+                            } catch (Exception e) {
+                                log.error("刷新registerkey失败", e);
+                                return FQNovelResponse.error("刷新registerkey失败: " + e.getMessage());
+                            }
+                            continue; // 重试
+                        } else {
+                            // 非非法访问，直接返回对应code和message
+                            return FQNovelResponse.error("code: " + code + ", message: " + message);
+                        }
+                    }
+
+                    // GZIP解压
+                    String responseBody = "";
+                    try (GZIPInputStream gzipInputStream = new GZIPInputStream(new ByteArrayInputStream(body))) {
+                        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+                        byte[] buffer = new byte[1024];
+                        int length;
+                        while ((length = gzipInputStream.read(buffer)) != -1) {
+                            byteArrayOutputStream.write(buffer, 0, length);
+                        }
+                        responseBody = new String(byteArrayOutputStream.toByteArray(), StandardCharsets.UTF_8);
+                    } catch (Exception e) {
+                        log.error("GZIP 解压失败", e);
+                    }
+
+                    FqIBatchFullResponse batchResponse = objectMapper.readValue(responseBody, FqIBatchFullResponse.class);
+                    return FQNovelResponse.success(batchResponse);
+
+                } catch (Exception e) {
+                    log.error("批量获取章节内容失败 - itemIds: {}", itemIds, e);
+                    return FQNovelResponse.error("批量获取章节内容失败: " + e.getMessage());
                 }
-
-                // 解析响应
-                FqIBatchFullResponse batchResponse = objectMapper.readValue(responseBody, FqIBatchFullResponse.class);
-                return FQNovelResponse.success(batchResponse);
-
-            } catch (Exception e) {
-                log.error("批量获取章节内容失败 - itemIds: {}", itemIds, e);
-                return FQNovelResponse.error("批量获取章节内容失败: " + e.getMessage());
             }
+            return FQNovelResponse.error("批量获取章节内容失败: 超过最大重试次数");
         });
     }
 
