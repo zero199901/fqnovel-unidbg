@@ -51,7 +51,8 @@ public class FQApiUtils {
         params.put("resolution", var.getResolution());
         params.put("dpi", var.getDpi());
         params.put("update_version_code", var.getUpdateVersionCode());
-        params.put("_rticket", var.getRticket());
+//        params.put("_rticket", var.getRticket());
+        params.put("_rticket", String.valueOf(System.currentTimeMillis())); // 使用当前时间戳作为_rticket
         params.put("host_abi", var.getHostAbi());
         params.put("dragon_device_type", var.getDragonDeviceType());
         params.put("pv_player", var.getPvPlayer());

@@ -116,7 +116,8 @@ public class FqVariable {
         this.manifestVersionCode = device.getVersionCode();
         this.resolution = device.getResolution();
         this.dpi = device.getDpi();
-        this.rticket = String.valueOf(System.currentTimeMillis());
+//        this.rticket = String.valueOf(System.currentTimeMillis());
+        this.rticket = ""; // 使用时间戳需要在请求时动态生成
         this.hostAbi = device.getHostAbi();
         this.dragonDeviceType = "phone";
         this.pvPlayer = device.getVersionCode();
