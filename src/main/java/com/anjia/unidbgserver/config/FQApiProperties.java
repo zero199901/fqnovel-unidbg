@@ -32,6 +32,16 @@ public class FQApiProperties {
      * 设备参数配置
      */
     private Device device = new Device();
+
+    /**
+     * 代理配置
+     */
+    private ProxyConfig proxy = new ProxyConfig();
+    
+    /**
+     * Redis配置（用于动态获取代理）
+     */
+    private RedisConfig redis = new RedisConfig();
     
     @Data
     public static class Device {
@@ -99,5 +109,39 @@ public class FQApiProperties {
          * 主机ABI
          */
         private String hostAbi = "arm64-v8a";
+    }
+
+    @Data
+    public static class ProxyConfig {
+        /** 是否启用代理 */
+        private Boolean enabled = false;
+        /** 是否从Redis获取代理（为true时忽略host/port本地配置） */
+        private Boolean useRedis = false;
+        /** 代理主机 */
+        private String host = "127.0.0.1";
+        /** 代理端口 */
+        private Integer port = 7890;
+        /** 代理类型：http 或 socks */
+        private String type = "http";
+    }
+    
+    @Data
+    public static class RedisConfig {
+        /** 是否启用Redis（仅当proxy.useRedis=true时需要） */
+        private Boolean enabled = false;
+        /** 主机 */
+        private String host = "127.0.0.1";
+        /** 端口 */
+        private Integer port = 6379;
+        /** 密码（可选） */
+        private String password;
+        /** DB索引 */
+        private Integer database = 0;
+        /** 代理集合key（按优先顺序，逗号分隔） */
+        private String proxyKeys = "proxy:set2,proxy:set";
+        /** 默认端口（当值里无端口时补充） */
+        private Integer defaultProxyPort = 8080;
+        /** 连接超时毫秒 */
+        private Integer timeoutMs = 3000;
     }
 }

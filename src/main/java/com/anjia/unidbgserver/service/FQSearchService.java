@@ -36,7 +36,8 @@ public class FQSearchService {
     @Resource
     private FQApiUtils fqApiUtils;
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    @Resource
+    private RestTemplate restTemplate;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     // 默认FQ变量配置

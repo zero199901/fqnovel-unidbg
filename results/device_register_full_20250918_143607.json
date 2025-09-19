@@ -1,0 +1,156 @@
+[
+  {
+    "timestamp": "2025-09-18T06:36:07.010437Z",
+    "request": {
+      "url": "https://log5-applog.fqnovel.com/service/2/device_register/?aid=1967&version_code=68132&channel=googleplay&package=com.dragon.read.oversea.gp&_rticket=1758177366808&use_store_region_cookie=1&okhttp_version=4.2.137.76-fanqie",
+      "headers": {
+        "User-Agent": "com.dragon.read.oversea.gp/68132 (Linux; U; Android 12; zh_CN; nova9; Build/V417IR;tt-ok/3.12.13.4-tiktok)",
+        "Accept": "application/json",
+        "Accept-Encoding": "gzip",
+        "Content-Type": "application/json",
+        "log-encode-type": "gzip",
+        "x-ss-req-ticket": "1758177366808",
+        "x-vc-bdturing-sdk-version": "3.7.2.cn",
+        "Cookie": "store-region=cn-zj; store-region-src=did; install_id=4548940798572051"
+      },
+      "params": {
+        "aid": "1967",
+        "version_code": "68132",
+        "channel": "googleplay",
+        "package": "com.dragon.read.oversea.gp",
+        "_rticket": "1758177366808",
+        "use_store_region_cookie": "1",
+        "okhttp_version": "4.2.137.76-fanqie"
+      },
+      "payload": {
+        "magic_tag": "ss_app_log",
+        "header": {
+          "display_name": "番茄小说",
+          "aid": 1967,
+          "channel": "googleplay",
+          "package": "com.dragon.read.oversea.gp",
+          "app_version": "6.8.1.32",
+          "version_code": 68132,
+          "update_version_code": 68132,
+          "manifest_version_code": 68132,
+          "app_version_minor": "6.8.1.32",
+          "sdk_version": "3.7.0-rc.25-fanqie-xiaoshuo-opt",
+          "sdk_target_version": 29,
+          "git_hash": "5b6a0d3",
+          "sdk_flavor": "china",
+          "guest_mode": 0,
+          "is_system_app": 0,
+          "pre_installed_channel": "",
+          "not_request_sender": 0,
+          "os": "Android",
+          "os_version": "12",
+          "os_api": 32,
+          "device_model": "nova9",
+          "device_brand": "HUAWEI",
+          "device_manufacturer": "HUAWEI",
+          "cpu_abi": "arm64-v8a",
+          "release_build": "V417IR_20171120",
+          "density_dpi": 560,
+          "display_density": "xxxhdpi",
+          "resolution": "2560x1440",
+          "language": "zh",
+          "timezone": 8,
+          "access": "wifi",
+          "rom": "1415",
+          "rom_version": "V417IR release-keys",
+          "cdid": "0c3cc6c4-9a02-4c47-8aba-8593774b8923",
+          "sig_hash": "1227237ce175f6b458b15fc32113c817",
+          "openudid": "8c4e5044d09674efdf3db7d48b9080f70cd9a1ae",
+          "clientudid": "bca5674b-0935-44c0-8d7a-3774de8452a6",
+          "ipv6_list": [
+            {
+              "type": "client_anpi",
+              "value": "281C:F94E:FADA:8530:7450:5CFF:DD27:E8BC"
+            }
+          ],
+          "region": "CN",
+          "tz_name": "Asia/Shanghai",
+          "tz_offset": 28800,
+          "sim_serial_number": [],
+          "oaid_may_support": false,
+          "req_id": "e966f09f-2aaa-4658-b272-c11e5c8e8aad",
+          "device_platform": "android",
+          "custom": {
+            "host_bit": 64,
+            "account_region": "cn",
+            "dragon_device_type": "phone"
+          },
+          "apk_first_install_time": 1747043953811
+        },
+        "_gen_time": 1758177366808
+      },
+      "device_info": {
+        "android_id": "98ac7ff726267bf5",
+        "device_brand": "HUAWEI",
+        "device_manufacturer": "HUAWEI",
+        "device_model": "nova9",
+        "device_type": "nova9",
+        "os_version": "12",
+        "os_api": 32,
+        "release_build": "V417IR_20171120",
+        "rom_version": "V417IR+release-keys",
+        "resolution": "2560*1440",
+        "density_dpi": 560,
+        "display_density": "xxxhdpi",
+        "cpu_abi": "arm64-v8a",
+        "host_abi": "arm64-v8a",
+        "rom": "1415",
+        "cdid": "0c3cc6c4-9a02-4c47-8aba-8593774b8923",
+        "sig_hash": "1227237ce175f6b458b15fc32113c817",
+        "openudid": "8c4e5044d09674efdf3db7d48b9080f70cd9a1ae",
+        "clientudid": "bca5674b-0935-44c0-8d7a-3774de8452a6",
+        "ipv6_address": "281C:F94E:FADA:8530:7450:5CFF:DD27:E8BC",
+        "device_id": "1444125752742491",
+        "install_id": "1444125752746587",
+        "req_id": "e966f09f-2aaa-4658-b272-c11e5c8e8aad",
+        "apk_first_install_time": 1747043953811,
+        "_gen_time": 1758177366808,
+        "_rticket": 1758177366808,
+        "algorithm_info": {
+          "use_real_openudid_algorithm": true,
+          "use_real_brand_model": true,
+          "openudid_generation": "real"
+        }
+      }
+    },
+    "response": {
+      "status_code": 200,
+      "headers": {
+        "Server": "volc-dcdn",
+        "Content-Type": "application/json",
+        "Transfer-Encoding": "chunked",
+        "Connection": "keep-alive",
+        "Date": "Thu, 18 Sep 2025 06:36:07 GMT",
+        "Vary": "Accept-Encoding",
+        "Set-Cookie": "store-region=cn-bj; Path=/; Domain=fqnovel.com; Max-Age=31536000; HttpOnly, store-region-src=did; Path=/; Domain=fqnovel.com; Max-Age=31536000; HttpOnly, install_id=1444125752746587; Path=/; Domain=fqnovel.com; Max-Age=157680000, ttreq=1$ed0a7d5e67b2f451817e4668617dbbcca5b66a3e; Path=/; Domain=fqnovel.com; Max-Age=63071999",
+        "X-Tt-Logid": "20250918143606498AC0274157153B351F",
+        "tt-idc-switch": "10000@20250917035235",
+        "server-timing": "inner; dur=118, cdn-cache;desc=MISS, origin;dur=122, edge;dur=0",
+        "x-tt-trace-host": "01007eefeb3bc4d02ce5a6ce535e743e3c0a50d200ebf3b478bb7319dabb1f0bd14049cab433f589330a7fbe31b71c5b0216364eb18b1b7619ce202ec237f1bda543f85c8954d4b901d0f5e4acf61bb4ad1a17f55ad27bc2d46dee07b345b58584",
+        "x-tt-trace-tag": "id=5",
+        "x-tt-trace-id": "00-5b89954503010588ac5032678a5607af-5b89954503010588-01",
+        "Content-Encoding": "gzip",
+        "via": "n220-181-136-140.bjchaoyangqu-ct02-container.Creative",
+        "x-request-ip": "114.64.251.50",
+        "x-dsa-trace-id": "17581773669f577d7529142a129e49b838c95d06ca",
+        "X-Dsa-Origin-Status": "200"
+      },
+      "content": "{\"server_time\":1758177366,\"device_id\":1444125752742491,\"install_id\":1444125752746587,\"new_user\":1,\"device_id_str\":\"1444125752742491\",\"install_id_str\":\"1444125752746587\",\"device_token\":\"AAAQCKSOAB4UMOSYBBVWU27X42T47M4563NU3Z44BYNR2RMNJOALDRGV5PPVERRCKSHHCYE6MXYA4ROA7EIWJGSOQ4BHEWRO3A7OCNS6DNRQC55M2ERYUK2OHZORC\"}",
+      "success": true,
+      "json": {
+        "server_time": 1758177366,
+        "device_id": 1444125752742491,
+        "install_id": 1444125752746587,
+        "new_user": 1,
+        "device_id_str": "1444125752742491",
+        "install_id_str": "1444125752746587",
+        "device_token": "AAAQCKSOAB4UMOSYBBVWU27X42T47M4563NU3Z44BYNR2RMNJOALDRGV5PPVERRCKSHHCYE6MXYA4ROA7EIWJGSOQ4BHEWRO3A7OCNS6DNRQC55M2ERYUK2OHZORC"
+      }
+    }
+  }
+]

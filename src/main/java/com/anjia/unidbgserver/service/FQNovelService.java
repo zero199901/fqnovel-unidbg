@@ -49,7 +49,8 @@ public class FQNovelService {
     @Resource
     private FQSearchService fqSearchService;
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    @Resource
+    private RestTemplate restTemplate;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     // 默认FQ变量配置

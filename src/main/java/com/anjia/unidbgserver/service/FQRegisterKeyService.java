@@ -31,7 +31,8 @@ public class FQRegisterKeyService {
     @Resource
     private FQApiUtils fqApiUtils;
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    @javax.annotation.Resource
+    private RestTemplate restTemplate;
 
     // 默认FQ变量配置
     private FqVariable defaultFqVariable;

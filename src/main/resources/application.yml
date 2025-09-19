@@ -12,19 +12,35 @@ application:
 fq:
     api:
         base-url: https://api5-normal-sinfonlineb.fqnovel.com
-        user-agent: com.dragon.read.oversea.gp/68132 (Linux; U; Android 10; zh_CN; OnePlus11; Build/V291IR;tt-ok/3.12.13.4-tiktok)
-        cookie: store-region=cn-zj; store-region-src=did; install_id=933935730456617
+        user-agent: com.dragon.read.oversea.gp/68132 (Linux; U; Android 12; zh_CN; nova9; Build/V417IR;tt-ok/3.12.13.4-tiktok)
+        cookie: store-region=cn-zj; store-region-src=did; install_id=1444125752746587;
+        proxy:
+            enabled: true            # 全局开关：true启用代理，false关闭代理
+            use-redis: true         # 为true时从Redis集合获取代理；为false使用host/port
+            host: 127.0.0.1          # 当 use-redis=false 时生效
+            port: 7890               # 当 use-redis=false 时生效
+            type: http # http 或 socks
+        redis:
+          enabled: true             # 开启后才会连接Redis并读取代理集合
+          host: 60.205.188.67
+          port: 26586
+          password: HT5aRYBK2HpReaQuYkLcg
+          database: 0
+          proxy-keys: proxy:set2,proxy:set   # 读取的集合keys，按顺序优先
+          default-proxy-port: 8080           # 当成员没有端口时补全
+          timeout-ms: 3000
+            
         device:
           aid: '1967'
-          cdid: 17f05006-423a-4172-be4b-7d26a42f2f4a
-          device-brand: OnePlus
-          device-id: '933935730452521'
-          device-type: OnePlus11
-          dpi: '640'
+          cdid: 0c3cc6c4-9a02-4c47-8aba-8593774b8923
+          device-brand: HUAWEI
+          device-id: '1444125752742491'
+          device-type: nova9
+          dpi: '560'
           host-abi: arm64-v8a
-          install-id: '933935730456617'
-          resolution: 3200*1440
-          rom-version: V291IR+release-keys
+          install-id: '1444125752746587'
+          resolution: 2560*1440
+          rom-version: V417IR+release-keys
           update-version-code: '68132'
           version-code: '68132'
           version-name: 6.8.1.32
