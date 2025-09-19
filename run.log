@@ -1,0 +1,38 @@
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v2.6.3)
+
+2025-09-19 17:02:27.035  INFO 49361 --- [           main] c.a.u.UnidbgServerApplication            : Starting UnidbgServerApplication v0.0.1-SNAPSHOT using Java 17.0.16 on bogon with PID 49361 (/Users/edy/code/cursor/nixiang/douyinsix/fqnovel-unidbg/target/unidbg-boot-server-0.0.1-SNAPSHOT.jar started by edy in /Users/edy/code/cursor/nixiang/douyinsix/fqnovel-unidbg)
+2025-09-19 17:02:27.036  INFO 49361 --- [           main] c.a.u.UnidbgServerApplication            : The following profiles are active: dev
+2025-09-19 17:02:28.256  INFO 49361 --- [           main] com.anjia.unidbgserver.unidbg.IdleFQ     : IdleFQ初始化完成
+2025-09-19 17:02:28.257  INFO 49361 --- [           main] c.a.u.service.FQEncryptService           : FQ签名服务初始化完成
+2025-09-19 17:02:28.292  INFO 49361 --- [           main] c.a.u.config.HttpClientConfig            : RestTemplate 代理已启用: 127.0.0.1:7890 (type=http)
+2025-09-19 17:02:28.299  INFO 49361 --- [           main] c.a.u.service.FQRegisterKeyService       : 初始化FQRegisterKeyService，获取初始registerkey...
+[main]E/METASEC: MSTaskManager::DoLazyInit()
+[main]E/METASEC: Fatal: SDK not init, crashing...
+[main]E/METASEC: Fatal: SDK not init, crashing...
+2025-09-19 17:02:29.066  INFO 49361 --- [           main] com.anjia.unidbgserver.unidbg.IdleFQ     : IdleFQ初始化完成
+2025-09-19 17:02:29.067  INFO 49361 --- [           main] c.a.u.service.FQEncryptService           : FQ签名服务初始化完成
+2025-09-19 17:02:29.213  WARN 49361 --- [           main] ion$DefaultTemplateResolverConfiguration : Cannot find template location: classpath:/templates/ (please add some templates or check your Thymeleaf configuration)
+2025-09-19 17:02:29.319  INFO 49361 --- [           main] c.a.u.UnidbgServerApplication            : Started UnidbgServerApplication in 2.566 seconds (JVM running for 2.765)
+2025-09-19 17:02:29.327  INFO 49361 --- [           main] c.a.u.UnidbgServerApplication            : 
+----------------------------------------------------------
+	应用: 		unidbg-boot-server 已启动!
+	地址: 		http://127.0.0.1:9999/
+	演示访问: 	curl http://127.0.0.1:9999/api/fq-signature/generateSignatureWithMap (linux)
+	演示访问: 	http://127.0.0.1:9999/api/fq-signature/generateSignatureWithMap (windows: 浏览器直接打开)
+	常见问题: 	https://github.com/anjia0532/unidbg-boot-server/blob/main/QA.md
+	配置文件: 	[application, application-dev]
+----------------------------------------------------------
+2025-09-19 17:02:29.327  INFO 49361 --- [           main] c.a.u.UnidbgServerApplication            : 
+----------------------------------------------------------
+
+[main]E/METASEC: Fatal: SDK not init, crashing...
+[main]E/METASEC: Fatal: SDK not init, crashing...
+[main]E/METASEC: Fatal: SDK not init, crashing...
+[main]E/METASEC: Fatal: SDK not init, crashing...

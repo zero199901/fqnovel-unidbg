@@ -364,6 +364,17 @@ public class FQSearchService {
      * 解压缩GZIP响应
      */
     private String decompressGzipResponse(byte[] gzipData) throws Exception {
+        if (gzipData == null || gzipData.length == 0) {
+            return "";
+        }
+
+        // 检测是否为GZIP格式（魔数 0x1f 0x8b）
+        boolean isGzip = gzipData.length >= 2 && (gzipData[0] == (byte) 0x1f && gzipData[1] == (byte) 0x8b);
+        if (!isGzip) {
+            // 不是GZIP，按UTF-8直接解析
+            return new String(gzipData, StandardCharsets.UTF_8);
+        }
+
         try (GZIPInputStream gzipInputStream = new GZIPInputStream(new ByteArrayInputStream(gzipData))) {
             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
             byte[] buffer = new byte[1024];
