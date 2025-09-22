@@ -167,7 +167,12 @@
                             <ports>
                                 <port>9999</port>
                             </ports>
+                            <environment>
+                                <JAVA_OPTS>-Xmx512m -Xms256m</JAVA_OPTS>
+                            </environment>
                         </container>
+                        <!-- 确保JAR文件被正确复制到容器中 -->
+                        <containerizingMode>packaged</containerizingMode>
                     </configuration>
                 </plugin>
             </plugins>

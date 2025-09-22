@@ -15,7 +15,7 @@ fq:
         user-agent: com.dragon.read.oversea.gp/68132 (Linux; U; Android 12; zh_CN; nova9; Build/V417IR;tt-ok/3.12.13.4-tiktok)
         cookie: store-region=cn-zj; store-region-src=did; install_id=1444125752746587;
         proxy:
-            enabled: true            # 全局开关：true启用代理，false关闭代理
+            enabled: false           # 全局开关：true启用代理，false关闭代理
             use-redis: true         # 为true时从Redis集合获取代理；为false使用host/port
             host: 127.0.0.1          # 当 use-redis=false 时生效
             port: 7890               # 当 use-redis=false 时生效

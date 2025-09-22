@@ -6,3 +6,8 @@ application:
     dynarmic: false
     verbose: false
     async: false
+
+fq:
+  api:
+    proxy:
+      enabled: false
