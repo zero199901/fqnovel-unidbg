@@ -1,10 +1,8 @@
-version: "3.8"
-
 services:
   app1:
     build: ./app
-    image: java-app:latest
-    container_name: java-app-1
+    image: fqnovel-app:latest
+    container_name: fqnovel-app-1
     environment:
       - SERVER_PORT=8757
       - JAVA_OPTS=-Xmx512m -Xms256m
@@ -21,8 +19,8 @@ services:
       start_period: 60s
 
   app2:
-    image: java-app:latest
-    container_name: java-app-2
+    image: fqnovel-app:latest
+    container_name: fqnovel-app-2
     environment:
       - SERVER_PORT=8757
       - JAVA_OPTS=-Xmx512m -Xms256m
@@ -41,8 +39,8 @@ services:
       - app1
 
   app3:
-    image: java-app:latest
-    container_name: java-app-3
+    image: fqnovel-app:latest
+    container_name: fqnovel-app-3
     environment:
       - SERVER_PORT=8757
       - JAVA_OPTS=-Xmx512m -Xms256m
@@ -61,8 +59,8 @@ services:
       - app1
 
   app4:
-    image: java-app:latest
-    container_name: java-app-4
+    image: fqnovel-app:latest
+    container_name: fqnovel-app-4
     environment:
       - SERVER_PORT=8757
       - JAVA_OPTS=-Xmx512m -Xms256m
@@ -81,8 +79,8 @@ services:
       - app1
 
   app5:
-    image: java-app:latest
-    container_name: java-app-5
+    image: fqnovel-app:latest
+    container_name: fqnovel-app-5
     environment:
       - SERVER_PORT=8757
       - JAVA_OPTS=-Xmx512m -Xms256m
@@ -102,11 +100,11 @@ services:
 
   nginx:
     image: nginx:1.25
-    container_name: java-nginx
+    container_name: fqnovel-nginx
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     ports:
-      - "8757:8757"
+      - "8756:8757"
     depends_on:
       - app1
       - app2
@@ -116,4 +114,4 @@ services:
 
 networks:
   default:
-    name: java-loadbalancer-net
+    name: fqnovel-loadbalancer-net
