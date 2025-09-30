@@ -1,5 +1,5 @@
 server:
-  port: 9999
+  port: 9091
   address: 0.0.0.0
 
 application:
@@ -44,6 +44,11 @@ fq:
           update-version-code: '68132'
           version-code: '68132'
           version-name: 6.8.1.32
+        # 设备轮换配置
+        device-rotation:
+          enabled: true              # 是否启用设备轮换
+          rotation-threshold: 100   # 轮换阈值（每N次请求换一次设备）
+          auto-generate-devices: true # 是否自动生成额外设备配置
 
 
 spring:

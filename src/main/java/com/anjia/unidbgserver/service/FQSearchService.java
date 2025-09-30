@@ -40,11 +40,21 @@ public class FQSearchService {
     private RestTemplate restTemplate;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    // 默认FQ变量配置
+    @Resource
+    private DeviceRotationService deviceRotationService;
+
+    // 默认FQ变量配置（保留向后兼容）
     private FqVariable defaultFqVariable;
 
     /**
-     * 获取默认FQ变量（延迟初始化）
+     * 获取FQ变量（支持设备轮换）
+     */
+    private FqVariable getFqVariable() {
+        return deviceRotationService.getCurrentDevice();
+    }
+
+    /**
+     * 获取默认FQ变量（延迟初始化，向后兼容）
      */
     private FqVariable getDefaultFqVariable() {
         if (defaultFqVariable == null) {
@@ -267,7 +277,7 @@ public class FQSearchService {
     public CompletableFuture<FQNovelResponse<FQSearchResponse>> searchBooks(FQSearchRequest searchRequest) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                FqVariable var = getDefaultFqVariable();
+                FqVariable var = getFqVariable();
 
                 // 构建搜索URL和参数
                 String url = fqApiUtils.getBaseUrl().replace("api5-normal-sinfonlineb", "api5-normal-sinfonlinec")
@@ -321,7 +331,7 @@ public class FQSearchService {
     public CompletableFuture<FQNovelResponse<FQDirectoryResponse>> getBookDirectory(FQDirectoryRequest directoryRequest) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                FqVariable var = getDefaultFqVariable();
+                FqVariable var = getFqVariable();
 
                 // 构建目录URL和参数
                 String url = fqApiUtils.getBaseUrl().replace("api5-normal-sinfonlineb", "api5-normal-sinfonlinec")

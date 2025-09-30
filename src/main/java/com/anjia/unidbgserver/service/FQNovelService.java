@@ -53,11 +53,21 @@ public class FQNovelService {
     private RestTemplate restTemplate;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    // 默认FQ变量配置
+    @Resource
+    private DeviceRotationService deviceRotationService;
+
+    // 默认FQ变量配置（保留向后兼容）
     private FqVariable defaultFqVariable;
 
     /**
-     * 获取默认FQ变量（延迟初始化）
+     * 获取FQ变量（支持设备轮换）
+     */
+    private FqVariable getFqVariable() {
+        return deviceRotationService.getCurrentDevice();
+    }
+
+    /**
+     * 获取默认FQ变量（延迟初始化，向后兼容）
      */
     private FqVariable getDefaultFqVariable() {
         if (defaultFqVariable == null) {
@@ -77,7 +87,7 @@ public class FQNovelService {
     public CompletableFuture<FQNovelResponse<FqIBatchFullResponse>> batchFull(String itemIds, String bookId, boolean download) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                FqVariable var = getDefaultFqVariable();
+                FqVariable var = getFqVariable();
 
                 // 使用工具类构建URL和参数
                 String url = fqApiUtils.getBaseUrl() + "/reading/reader/batch_full/v";
@@ -98,18 +108,48 @@ public class FQNovelService {
                 HttpEntity<String> entity = new HttpEntity<>(httpHeaders);
                 ResponseEntity<byte[]> response = restTemplate.exchange(fullUrl, HttpMethod.GET, entity, byte[].class);
 
-                // 解压缩 GZIP 响应体
+                // 处理响应体 - 支持GZIP和普通JSON格式
                 String responseBody = "";
-                try (GZIPInputStream gzipInputStream = new GZIPInputStream(new ByteArrayInputStream(response.getBody()))) {
-                    ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-                    byte[] buffer = new byte[1024];
-                    int length;
-                    while ((length = gzipInputStream.read(buffer)) != -1) {
-                        byteArrayOutputStream.write(buffer, 0, length);
+                byte[] responseBytes = response.getBody();
+                
+                if (responseBytes == null || responseBytes.length == 0) {
+                    log.error("响应体为空");
+                    return FQNovelResponse.error("API响应为空");
+                }
+                
+                // 检查是否为GZIP格式
+                boolean isGzip = responseBytes.length >= 2 && 
+                    responseBytes[0] == (byte) 0x1f && responseBytes[1] == (byte) 0x8b;
+                
+                if (isGzip) {
+                    // 解压缩 GZIP 响应体
+                    try (GZIPInputStream gzipInputStream = new GZIPInputStream(new ByteArrayInputStream(responseBytes))) {
+                        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+                        byte[] buffer = new byte[1024];
+                        int length;
+                        while ((length = gzipInputStream.read(buffer)) != -1) {
+                            byteArrayOutputStream.write(buffer, 0, length);
+                        }
+                        responseBody = new String(byteArrayOutputStream.toByteArray(), StandardCharsets.UTF_8);
+                    } catch (Exception e) {
+                        log.error("GZIP 解压失败，原始响应体: {}", new String(responseBytes, StandardCharsets.UTF_8), e);
+                        return FQNovelResponse.error("GZIP解压失败: " + e.getMessage());
                     }
-                    responseBody = new String(byteArrayOutputStream.toByteArray(), StandardCharsets.UTF_8);
-                } catch (Exception e) {
-                    log.error("GZIP 解压失败，原始响应体: {}", new String(response.getBody(), StandardCharsets.UTF_8), e);
+                } else {
+                    // 直接使用原始响应体
+                    responseBody = new String(responseBytes, StandardCharsets.UTF_8);
+                }
+                
+                // 检查响应体是否为空
+                if (responseBody.trim().isEmpty()) {
+                    log.error("解压后的响应体为空");
+                    return FQNovelResponse.error("API响应内容为空");
+                }
+                
+                // 检查是否为错误响应
+                if (responseBody.contains("\"code\":110") || responseBody.contains("ILLEGAL_ACCESS")) {
+                    log.error("API返回访问错误: {}", responseBody);
+                    return FQNovelResponse.error("API访问被拒绝，请检查请求参数和认证信息");
                 }
 
                 // 解析响应
@@ -129,7 +169,7 @@ public class FQNovelService {
             int maxAttempts = 1;
             for (int attempt = 0; attempt <= maxAttempts; attempt++) {
                 try {
-                    FqVariable var = getDefaultFqVariable();
+                    FqVariable var = getFqVariable();
                     String url = fqApiUtils.getBaseUrl() + "/reading/reader/batch_full/v";
                     Map<String, String> params = fqApiUtils.buildBatchFullParams(var, itemIds, bookId, download);
                     String fullUrl = fqApiUtils.buildUrlWithParams(url, params);

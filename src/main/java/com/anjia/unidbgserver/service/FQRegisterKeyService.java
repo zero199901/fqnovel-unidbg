@@ -34,7 +34,10 @@ public class FQRegisterKeyService {
     @javax.annotation.Resource
     private RestTemplate restTemplate;
 
-    // 默认FQ变量配置
+    @Resource
+    private DeviceRotationService deviceRotationService;
+
+    // 默认FQ变量配置（保留向后兼容）
     private FqVariable defaultFqVariable;
 
     // 缓存的registerkey响应，按keyver分组
@@ -44,7 +47,14 @@ public class FQRegisterKeyService {
     private volatile FqRegisterKeyResponse currentRegisterKey;
 
     /**
-     * 获取默认FQ变量（延迟初始化）
+     * 获取FQ变量（支持设备轮换）
+     */
+    private FqVariable getFqVariable() {
+        return deviceRotationService.getCurrentDevice();
+    }
+
+    /**
+     * 获取默认FQ变量（延迟初始化，向后兼容）
      */
     private FqVariable getDefaultFqVariable() {
         if (defaultFqVariable == null) {
@@ -135,7 +145,7 @@ public class FQRegisterKeyService {
      * @return RegisterKey响应
      */
     private FqRegisterKeyResponse fetchRegisterKey() throws Exception {
-        FqVariable var = getDefaultFqVariable();
+                FqVariable var = getFqVariable();
 
         // 使用工具类构建URL和参数
         String url = fqApiUtils.getBaseUrl() + "/reading/crypt/registerkey";

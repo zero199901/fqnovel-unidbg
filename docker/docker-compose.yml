@@ -1,0 +1,119 @@
+version: "3.8"
+
+services:
+  app1:
+    build: ./app
+    image: java-app:latest
+    container_name: java-app-1
+    environment:
+      - SERVER_PORT=8757
+      - JAVA_OPTS=-Xmx512m -Xms256m
+    volumes:
+      - ./app/unidbg-boot-server-0.0.1-SNAPSHOT.jar:/app/app.jar:ro
+    expose:
+      - "8757"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8757/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  app2:
+    image: java-app:latest
+    container_name: java-app-2
+    environment:
+      - SERVER_PORT=8757
+      - JAVA_OPTS=-Xmx512m -Xms256m
+    volumes:
+      - ./app/unidbg-boot-server-0.0.1-SNAPSHOT.jar:/app/app.jar:ro
+    expose:
+      - "8757"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8757/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    depends_on:
+      - app1
+
+  app3:
+    image: java-app:latest
+    container_name: java-app-3
+    environment:
+      - SERVER_PORT=8757
+      - JAVA_OPTS=-Xmx512m -Xms256m
+    volumes:
+      - ./app/unidbg-boot-server-0.0.1-SNAPSHOT.jar:/app/app.jar:ro
+    expose:
+      - "8757"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8757/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    depends_on:
+      - app1
+
+  app4:
+    image: java-app:latest
+    container_name: java-app-4
+    environment:
+      - SERVER_PORT=8757
+      - JAVA_OPTS=-Xmx512m -Xms256m
+    volumes:
+      - ./app/unidbg-boot-server-0.0.1-SNAPSHOT.jar:/app/app.jar:ro
+    expose:
+      - "8757"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8757/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    depends_on:
+      - app1
+
+  app5:
+    image: java-app:latest
+    container_name: java-app-5
+    environment:
+      - SERVER_PORT=8757
+      - JAVA_OPTS=-Xmx512m -Xms256m
+    volumes:
+      - ./app/unidbg-boot-server-0.0.1-SNAPSHOT.jar:/app/app.jar:ro
+    expose:
+      - "8757"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8757/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    depends_on:
+      - app1
+
+  nginx:
+    image: nginx:1.25
+    container_name: java-nginx
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "8757:8757"
+    depends_on:
+      - app1
+      - app2
+      - app3
+      - app4
+      - app5
+
+networks:
+  default:
+    name: java-loadbalancer-net
