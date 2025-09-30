@@ -1038,4 +1038,259 @@ public class FQNovelService {
             return false;
         }
     }
+
+    /**
+     * 导出文本内容
+     * 支持通过bookId或书名导出整本书的文本内容
+     *
+     * @param request 导出请求
+     * @return 导出响应
+     */
+    public CompletableFuture<FQNovelResponse<FQExportTextResponse>> exportText(FQExportTextRequest request) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                String bookId = request.getBookId();
+                String bookName = request.getBookName();
+                
+                // 如果只提供了书名，先搜索获取bookId
+                if (bookId == null || bookId.trim().isEmpty()) {
+                    if (bookName == null || bookName.trim().isEmpty()) {
+                        return FQNovelResponse.error("书籍ID和书名不能同时为空");
+                    }
+                    
+                    // 通过书名搜索获取bookId
+                    FQSearchRequest searchRequest = new FQSearchRequest();
+                    searchRequest.setQuery(bookName.trim());
+                    searchRequest.setCount(1);
+                    searchRequest.setOffset(0);
+                    
+                    FQNovelResponse<FQSearchResponse> searchResponse = fqSearchService.searchBooks(searchRequest).get();
+                    if (searchResponse.getCode() != 0 || searchResponse.getData() == null || 
+                        searchResponse.getData().getBooks() == null || searchResponse.getData().getBooks().isEmpty()) {
+                        return FQNovelResponse.error("未找到书名: " + bookName);
+                    }
+                    
+                    FQSearchResponse.BookItem firstBook = searchResponse.getData().getBooks().get(0);
+                    bookId = firstBook.getBookId();
+                    log.info("通过书名找到书籍 - 书名: {}, bookId: {}", bookName, bookId);
+                }
+                
+                // 获取书籍信息
+                FQNovelResponse<FQNovelBookInfo> bookInfoResponse = getBookInfo(bookId).get();
+                if (bookInfoResponse.getCode() != 0 || bookInfoResponse.getData() == null) {
+                    return FQNovelResponse.error("获取书籍信息失败: " + bookInfoResponse.getMessage());
+                }
+                
+                FQNovelBookInfo bookInfo = bookInfoResponse.getData();
+                String actualBookName = bookInfo.getBookName();
+                String author = bookInfo.getAuthor();
+                
+                // 获取书籍目录
+                FQDirectoryRequest directoryRequest = new FQDirectoryRequest();
+                directoryRequest.setBookId(bookId);
+                directoryRequest.setBookType(0);
+                directoryRequest.setNeedVersion(true);
+                
+                FQNovelResponse<FQDirectoryResponse> directoryResponse = fqSearchService.getBookDirectory(directoryRequest).get();
+                if (directoryResponse.getCode() != 0 || directoryResponse.getData() == null) {
+                    return FQNovelResponse.error("获取书籍目录失败: " + directoryResponse.getMessage());
+                }
+                
+                List<FQDirectoryResponse.CatalogItem> catalogItems = directoryResponse.getData().getCatalogData();
+                List<FQDirectoryResponse.ItemData> itemDataList = directoryResponse.getData().getItemDataList();
+                if (catalogItems == null || catalogItems.isEmpty()) {
+                    return FQNovelResponse.error("书籍目录为空，无法导出");
+                }
+                
+                // 确定要导出的章节范围
+                List<String> chapterIds;
+                List<String> itemIds;
+                if (request.getChapterRange() != null && !request.getChapterRange().trim().isEmpty()) {
+                    chapterIds = parseChapterRange(request.getChapterRange());
+                    if (chapterIds.isEmpty()) {
+                        return FQNovelResponse.error("无效的章节范围: " + request.getChapterRange());
+                    }
+                    
+                    // 将章节位置转换为实际的itemIds
+                    if (isChapterPositions(chapterIds)) {
+                        itemIds = getItemIdsByChapterPositions(bookId, chapterIds);
+                        if (itemIds.isEmpty()) {
+                            return FQNovelResponse.error("无法获取章节对应的itemIds");
+                        }
+                    } else {
+                        itemIds = chapterIds;
+                    }
+                } else {
+                    // 导出所有章节
+                    chapterIds = new ArrayList<>();
+                    itemIds = new ArrayList<>();
+                    for (FQDirectoryResponse.CatalogItem item : catalogItems) {
+                        chapterIds.add(item.getItemId());
+                        itemIds.add(item.getItemId());
+                    }
+                }
+                
+                log.info("开始导出文本 - 书名: {}, 章节数: {}", actualBookName, chapterIds.size());
+                
+                // 批量获取章节内容
+                StringBuilder textContent = new StringBuilder();
+                int successCount = 0;
+                int totalWords = 0;
+                
+                // 添加书籍标题
+                textContent.append(actualBookName);
+                if (author != null && !author.trim().isEmpty()) {
+                    textContent.append(" - ").append(author);
+                }
+                textContent.append("\n\n");
+                
+                // 分批处理章节（每批最多30个章节）
+                int batchSize = 30;
+                for (int i = 0; i < itemIds.size(); i += batchSize) {
+                    int endIndex = Math.min(i + batchSize, itemIds.size());
+                    List<String> batchItemIds = itemIds.subList(i, endIndex);
+                    String itemIdsStr = String.join(",", batchItemIds);
+                    
+                    // 批量获取章节内容
+                    FQNovelResponse<BatchFullResponseWithRaw> batchResponse = batchFullWithRaw(itemIdsStr, bookId, true, false).get();
+                    
+                    if (batchResponse.getCode() == 0 && batchResponse.getData() != null) {
+                        FqIBatchFullResponse batchFullResponse = batchResponse.getData().getBatchResponse();
+                        Map<String, ItemContent> dataMap = batchFullResponse.getData();
+                        
+                        if (dataMap != null) {
+                            // 按章节顺序处理
+                            for (String itemId : batchItemIds) {
+                                ItemContent itemContent = dataMap.get(itemId);
+                                if (itemContent != null) {
+                                    // 获取章节标题 - 先从ItemContent中获取，如果为空则从解密后的HTML中提取
+                                    String chapterTitle = itemContent.getTitle();
+                                    if (chapterTitle == null || chapterTitle.trim().isEmpty()) {
+                                        // 如果ItemContent中没有标题，尝试从ItemData中获取
+                                        chapterTitle = findChapterTitleFromItemData(itemDataList, itemId);
+                                    }
+                                    if (chapterTitle == null || chapterTitle.trim().isEmpty()) {
+                                        chapterTitle = "第" + (successCount + 1) + "章";
+                                    }
+                                    
+                                    // 添加章节标题 - 使用简洁格式
+                                    // 提取章节号，去掉"第"和"章"字
+                                    String chapterNumber = chapterTitle.replaceAll("第", "").replaceAll("章", "");
+                                    textContent.append("#").append(chapterNumber).append("\n");
+                                    
+                                    // 解密并添加章节内容
+                                    String encryptedContent = itemContent.getContent();
+                                    if (encryptedContent != null && !encryptedContent.trim().isEmpty()) {
+                                        try {
+                                            // 获取解密密钥
+                                            Long contentKeyver = itemContent.getKeyVersion();
+                                            String key = registerKeyService.getDecryptionKey(contentKeyver);
+                                            
+                                            // 解密内容
+                                            String decryptedContent = FqCrypto.decryptAndDecompressContent(encryptedContent, key);
+                                            
+                                            // 如果章节标题为空，尝试从解密后的HTML中提取
+                                            if (chapterTitle == null || chapterTitle.trim().isEmpty() || ("第" + (successCount + 1) + "章").equals(chapterTitle)) {
+                                                Pattern titlePattern = Pattern.compile("<h1[^>]*>.*?<blk[^>]*>([^<]*)</blk>.*?</h1>", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+                                                Matcher titleMatcher = titlePattern.matcher(decryptedContent);
+                                                if (titleMatcher.find()) {
+                                                    chapterTitle = titleMatcher.group(1).trim();
+                                                }
+                                            }
+                                            
+                                            // 提取纯文本内容
+                                            String txtContent = extractTextFromHtml(decryptedContent);
+                                            
+                                            if (txtContent != null && !txtContent.trim().isEmpty()) {
+                                                // 去掉内容开头的章节标题（避免重复）
+                                                String cleanContent = txtContent.trim();
+                                                if (cleanContent.startsWith(chapterTitle)) {
+                                                    cleanContent = cleanContent.substring(chapterTitle.length()).trim();
+                                                }
+                                                textContent.append(cleanContent).append("\n");
+                                                totalWords += cleanContent.length();
+                                            }
+                                        } catch (Exception e) {
+                                            log.warn("解密章节内容失败 - itemId: {}, error: {}", itemId, e.getMessage());
+                                            // 如果解密失败，尝试直接使用原始内容
+                                            textContent.append(encryptedContent.trim()).append("\n");
+                                            totalWords += encryptedContent.length();
+                                        }
+                                    }
+                                    
+                                    // 添加分隔符
+                                    if (successCount < chapterIds.size() - 1) {
+                                        textContent.append(request.getSeparator() != null ? request.getSeparator() : "\n\n");
+                                    }
+                                    
+                                    successCount++;
+                                }
+                            }
+                        }
+                    }
+                    
+                    // 添加延迟避免请求过于频繁
+                    if (i + batchSize < chapterIds.size()) {
+                        try {
+                            Thread.sleep(1000); // 1秒延迟
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            break;
+                        }
+                    }
+                }
+                
+                // 生成文件名
+                String fileName = request.getFileName();
+                if (fileName == null || fileName.trim().isEmpty()) {
+                    fileName = actualBookName.replaceAll("[\\\\/:*?\"<>|]", "_") + ".txt";
+                }
+                if (!fileName.endsWith(".txt")) {
+                    fileName += ".txt";
+                }
+                
+                // 构建响应 - 添加作品名字和章节内容
+                StringBuilder finalContent = new StringBuilder();
+                finalContent.append(actualBookName).append("\n\n");
+                finalContent.append(textContent.toString());
+                
+                FQExportTextResponse response = new FQExportTextResponse();
+                response.setContent(finalContent.toString());
+                
+                log.info("文本导出完成 - 书名: {}, 成功章节数: {}, 总字数: {}", 
+                    actualBookName, successCount, totalWords);
+                
+                return FQNovelResponse.success(response);
+                
+            } catch (Exception e) {
+                log.error("导出文本失败", e);
+                return FQNovelResponse.error("导出文本失败: " + e.getMessage());
+            }
+        });
+    }
+    
+    /**
+     * 根据章节ID查找章节标题
+     */
+    private String findChapterTitle(List<FQDirectoryResponse.CatalogItem> catalogItems, String chapterId) {
+        for (FQDirectoryResponse.CatalogItem item : catalogItems) {
+            if (chapterId.equals(item.getItemId())) {
+                return item.getCatalogTitle();
+            }
+        }
+        return "未知章节";
+    }
+    
+    /**
+     * 根据章节ID从ItemData列表中查找章节标题
+     */
+    private String findChapterTitleFromItemData(List<FQDirectoryResponse.ItemData> itemDataList, String chapterId) {
+        for (FQDirectoryResponse.ItemData item : itemDataList) {
+            if (chapterId.equals(item.getItemId())) {
+                return item.getTitle();
+            }
+        }
+        return "未知章节";
+    }
+    
 }

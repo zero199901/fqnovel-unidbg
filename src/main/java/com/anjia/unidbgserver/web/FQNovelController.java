@@ -7,6 +7,8 @@ import com.anjia.unidbgserver.dto.FQNovelRequest;
 import com.anjia.unidbgserver.dto.FQNovelResponse;
 import com.anjia.unidbgserver.dto.FQBatchChapterRequest;
 import com.anjia.unidbgserver.dto.FQBatchChapterResponse;
+import com.anjia.unidbgserver.dto.FQExportTextRequest;
+import com.anjia.unidbgserver.dto.FQExportTextResponse;
 import com.anjia.unidbgserver.service.FQNovelService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -152,6 +154,73 @@ public class FQNovelController {
         }
         
         return fqNovelService.getBatchChapterContent(request);
+    }
+
+    /**
+     * 导出文本内容 (POST方式)
+     * 支持通过bookId或书名导出整本书的文本内容
+     * 
+     * @param request 导出请求
+     * @return 导出响应，包含文本内容和统计信息
+     */
+    @PostMapping("/export/text")
+    public CompletableFuture<FQNovelResponse<FQExportTextResponse>> exportText(
+            @RequestBody FQExportTextRequest request) {
+        
+        if (log.isDebugEnabled()) {
+            log.debug("导出文本请求(POST) - bookId: {}, bookName: {}, chapterRange: {}", 
+                request.getBookId(), request.getBookName(), request.getChapterRange());
+        }
+        
+        return fqNovelService.exportText(request);
+    }
+
+    /**
+     * 导出文本内容 (GET方式)
+     * 支持通过bookId或书名导出整本书的文本内容
+     * 
+     * @param bookId 书籍ID
+     * @param bookName 书名
+     * @param chapterRange 章节范围，如：1-100
+     * @param includeTitle 是否包含章节标题
+     * @param includeChapterNumber 是否包含章节编号
+     * @param separator 章节间分隔符
+     * @param fileName 文件名
+     * @return 导出响应，包含文本内容和统计信息
+     */
+    @GetMapping(value = "/export/text", produces = "text/plain;charset=UTF-8")
+    public CompletableFuture<String> exportTextGet(
+            @RequestParam(required = false) String bookId,
+            @RequestParam(required = false) String bookName,
+            @RequestParam(required = false) String chapterRange,
+            @RequestParam(required = false, defaultValue = "true") Boolean includeTitle,
+            @RequestParam(required = false, defaultValue = "true") Boolean includeChapterNumber,
+            @RequestParam(required = false, defaultValue = "\n\n") String separator,
+            @RequestParam(required = false) String fileName) {
+        
+        if (log.isDebugEnabled()) {
+            log.debug("导出文本请求(GET) - bookId: {}, bookName: {}, chapterRange: {}", 
+                bookId, bookName, chapterRange);
+        }
+        
+        // 构建请求对象
+        FQExportTextRequest request = new FQExportTextRequest();
+        request.setBookId(bookId);
+        request.setBookName(bookName);
+        request.setChapterRange(chapterRange);
+        request.setIncludeTitle(includeTitle);
+        request.setIncludeChapterNumber(includeChapterNumber);
+        request.setSeparator(separator);
+        request.setFileName(fileName);
+        
+        return fqNovelService.exportText(request)
+                .thenApply(response -> {
+                    if (response.getCode() == 0 && response.getData() != null) {
+                        return response.getData().getContent();
+                    } else {
+                        return "导出失败: " + response.getMessage();
+                    }
+                });
     }
 
     /**
