@@ -1098,7 +1098,7 @@ public class FQNovelService {
                 
                 List<FQDirectoryResponse.CatalogItem> catalogItems = directoryResponse.getData().getCatalogData();
                 List<FQDirectoryResponse.ItemData> itemDataList = directoryResponse.getData().getItemDataList();
-                if (catalogItems == null || catalogItems.isEmpty()) {
+                if ((catalogItems == null || catalogItems.isEmpty()) && (itemDataList == null || itemDataList.isEmpty())) {
                     return FQNovelResponse.error("书籍目录为空，无法导出");
                 }
                 
