@@ -85,81 +85,196 @@ public class FQNovelService {
      * @return 批量内容响应
      */
     public CompletableFuture<FQNovelResponse<FqIBatchFullResponse>> batchFull(String itemIds, String bookId, boolean download) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                FqVariable var = getFqVariable();
-
-                // 使用工具类构建URL和参数
-                String url = fqApiUtils.getBaseUrl() + "/reading/reader/batch_full/v";
-                Map<String, String> params = fqApiUtils.buildBatchFullParams(var, itemIds, bookId, download);
-                String fullUrl = fqApiUtils.buildUrlWithParams(url, params);
-
-                // 使用工具类构建请求头
-                Map<String, String> headers = fqApiUtils.buildCommonHeaders();
-
-                // 使用现有的签名服务生成签名
-                Map<String, String> signedHeaders = fqEncryptServiceWorker.generateSignatureHeaders(fullUrl, headers).get();
-
-                // 发起API请求
-                HttpHeaders httpHeaders = new HttpHeaders();
-                signedHeaders.forEach(httpHeaders::set);
-                headers.forEach(httpHeaders::set);
-
-                HttpEntity<String> entity = new HttpEntity<>(httpHeaders);
-                ResponseEntity<byte[]> response = restTemplate.exchange(fullUrl, HttpMethod.GET, entity, byte[].class);
-
-                // 处理响应体 - 支持GZIP和普通JSON格式
-                String responseBody = "";
-                byte[] responseBytes = response.getBody();
-                
-                if (responseBytes == null || responseBytes.length == 0) {
-                    log.error("响应体为空");
-                    return FQNovelResponse.error("API响应为空");
-                }
-                
-                // 检查是否为GZIP格式
-                boolean isGzip = responseBytes.length >= 2 && 
-                    responseBytes[0] == (byte) 0x1f && responseBytes[1] == (byte) 0x8b;
-                
-                if (isGzip) {
-                    // 解压缩 GZIP 响应体
-                    try (GZIPInputStream gzipInputStream = new GZIPInputStream(new ByteArrayInputStream(responseBytes))) {
-                        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-                        byte[] buffer = new byte[1024];
-                        int length;
-                        while ((length = gzipInputStream.read(buffer)) != -1) {
-                            byteArrayOutputStream.write(buffer, 0, length);
-                        }
-                        responseBody = new String(byteArrayOutputStream.toByteArray(), StandardCharsets.UTF_8);
-                    } catch (Exception e) {
-                        log.error("GZIP 解压失败，原始响应体: {}", new String(responseBytes, StandardCharsets.UTF_8), e);
-                        return FQNovelResponse.error("GZIP解压失败: " + e.getMessage());
-                    }
-                } else {
-                    // 直接使用原始响应体
-                    responseBody = new String(responseBytes, StandardCharsets.UTF_8);
-                }
-                
-                // 检查响应体是否为空
-                if (responseBody.trim().isEmpty()) {
-                    log.error("解压后的响应体为空");
-                    return FQNovelResponse.error("API响应内容为空");
-                }
-                
-                // 检查是否为错误响应
-                if (responseBody.contains("\"code\":110") || responseBody.contains("ILLEGAL_ACCESS")) {
-                    log.error("API返回访问错误: {}", responseBody);
-                    return FQNovelResponse.error("API访问被拒绝，请检查请求参数和认证信息");
-                }
-
-                // 解析响应
-                FqIBatchFullResponse batchResponse = objectMapper.readValue(responseBody, FqIBatchFullResponse.class);
-                return FQNovelResponse.success(batchResponse);
-
-            } catch (Exception e) {
-                log.error("批量获取章节内容失败 - itemIds: {}", itemIds, e);
-                return FQNovelResponse.error("批量获取章节内容失败: " + e.getMessage());
+        return batchFullWithRaw(itemIds, bookId, download, false).thenApply(response -> {
+            if (response.getCode() == 0) {
+                return FQNovelResponse.success(response.getData().getBatchResponse());
+            } else {
+                return FQNovelResponse.error(response.getMessage());
             }
+        });
+    }
+
+    /**
+     * 批量获取章节内容 (支持返回原始响应)
+     *
+     * @param itemIds 章节ID列表，逗号分隔
+     * @param bookId 书籍ID
+     * @param download 是否下载模式 (false=在线阅读, true=下载)
+     * @param includeRawResponse 是否包含原始响应信息
+     * @return 批量内容响应（包含原始响应信息）
+     */
+    public CompletableFuture<FQNovelResponse<BatchFullResponseWithRaw>> batchFullWithRaw(String itemIds, String bookId, boolean download, boolean includeRawResponse) {
+        return CompletableFuture.supplyAsync(() -> {
+            int maxAttempts = 3;
+            int deviceSwitchThreshold = 2; // 失败2次后切换设备
+            int consecutiveFailures = 0;
+            
+            for (int attempt = 0; attempt < maxAttempts; attempt++) {
+                try {
+                    // 如果连续失败超过阈值，尝试切换设备
+                    if (consecutiveFailures >= deviceSwitchThreshold && attempt > 0) {
+                        log.warn("连续失败{}次，尝试切换设备...", consecutiveFailures);
+                        try {
+                            deviceRotationService.switchToNextDevice();
+                            log.info("已切换到下一个设备");
+                            consecutiveFailures = 0; // 重置失败计数
+                        } catch (Exception e) {
+                            log.error("切换设备失败", e);
+                        }
+                    }
+                    
+                    FqVariable var = getFqVariable();
+
+                    // 使用工具类构建URL和参数
+                    String url = fqApiUtils.getBaseUrl() + "/reading/reader/batch_full/v";
+                    Map<String, String> params = fqApiUtils.buildBatchFullParams(var, itemIds, bookId, download);
+                    String fullUrl = fqApiUtils.buildUrlWithParams(url, params);
+
+                    log.info("批量获取章节内容 - 第{}次尝试, URL: {}, itemIds: {}, bookId: {}", 
+                        attempt + 1, fullUrl, itemIds, bookId);
+
+                    // 使用工具类构建请求头
+                    Map<String, String> headers = fqApiUtils.buildCommonHeaders();
+
+                    // 使用现有的签名服务生成签名
+                    Map<String, String> signedHeaders = fqEncryptServiceWorker.generateSignatureHeaders(fullUrl, headers).get();
+
+                    // 发起API请求
+                    HttpHeaders httpHeaders = new HttpHeaders();
+                    signedHeaders.forEach(httpHeaders::set);
+                    headers.forEach(httpHeaders::set);
+
+                    HttpEntity<String> entity = new HttpEntity<>(httpHeaders);
+                    
+                    // 记录请求时间戳
+                    long requestTimestamp = System.currentTimeMillis();
+                    ResponseEntity<byte[]> response = restTemplate.exchange(fullUrl, HttpMethod.GET, entity, byte[].class);
+                    long responseTimestamp = System.currentTimeMillis();
+
+                    // 记录响应状态信息
+                    log.info("API响应状态: {}, 响应头: {}", response.getStatusCode(), response.getHeaders());
+
+                    // 处理响应体 - 支持GZIP和普通JSON格式
+                    String responseBody = "";
+                    byte[] responseBytes = response.getBody();
+                    
+                    if (responseBytes == null || responseBytes.length == 0) {
+                        log.error("响应体为空 - 状态码: {}, 响应头: {}", response.getStatusCode(), response.getHeaders());
+                        if (attempt < maxAttempts - 1) {
+                            log.warn("响应体为空，准备重试 - 第{}次", attempt + 1);
+                            try {
+                                Thread.sleep(1000 * (attempt + 1)); // 递增延迟
+                            } catch (InterruptedException ie) {
+                                Thread.currentThread().interrupt();
+                            }
+                            continue;
+                        }
+                        return FQNovelResponse.error("API响应为空，状态码: " + response.getStatusCode());
+                    }
+                    
+                    // 检查是否为GZIP格式
+                    boolean isGzip = responseBytes.length >= 2 && 
+                        responseBytes[0] == (byte) 0x1f && responseBytes[1] == (byte) 0x8b;
+                    
+                    log.info("响应体大小: {} bytes, 是否为GZIP: {}", responseBytes.length, isGzip);
+                    
+                    if (isGzip) {
+                        // 解压缩 GZIP 响应体
+                        try (GZIPInputStream gzipInputStream = new GZIPInputStream(new ByteArrayInputStream(responseBytes))) {
+                            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+                            byte[] buffer = new byte[1024];
+                            int length;
+                            while ((length = gzipInputStream.read(buffer)) != -1) {
+                                byteArrayOutputStream.write(buffer, 0, length);
+                            }
+                            responseBody = new String(byteArrayOutputStream.toByteArray(), StandardCharsets.UTF_8);
+                        } catch (Exception e) {
+                            log.error("GZIP 解压失败，原始响应体: {}", new String(responseBytes, StandardCharsets.UTF_8), e);
+                            return FQNovelResponse.error("GZIP解压失败: " + e.getMessage());
+                        }
+                    } else {
+                        // 直接使用原始响应体
+                        responseBody = new String(responseBytes, StandardCharsets.UTF_8);
+                    }
+                    
+                    // 检查响应体是否为空
+                    if (responseBody.trim().isEmpty()) {
+                        log.error("解压后的响应体为空");
+                        if (attempt < maxAttempts - 1) {
+                            log.warn("解压后响应体为空，准备重试 - 第{}次", attempt + 1);
+                            try {
+                                Thread.sleep(1000 * (attempt + 1));
+                            } catch (InterruptedException ie) {
+                                Thread.currentThread().interrupt();
+                            }
+                            continue;
+                        }
+                        return FQNovelResponse.error("API响应内容为空");
+                    }
+                    
+                    // 检查是否为错误响应
+                    if (responseBody.contains("\"code\":110") || responseBody.contains("ILLEGAL_ACCESS")) {
+                        log.error("API返回访问错误: {}", responseBody);
+                        if (attempt < maxAttempts - 1) {
+                            log.warn("检测到访问错误，尝试刷新registerkey并重试 - 第{}次", attempt + 1);
+                            try {
+                                registerKeyService.refreshRegisterKey();
+                                Thread.sleep(2000); // 等待2秒后重试
+                            } catch (Exception e) {
+                                log.error("刷新registerkey失败", e);
+                            }
+                            continue;
+                        }
+                        return FQNovelResponse.error("API访问被拒绝，请检查请求参数和认证信息");
+                    }
+
+                    // 解析响应
+                    FqIBatchFullResponse batchResponse = objectMapper.readValue(responseBody, FqIBatchFullResponse.class);
+                    log.info("成功获取批量章节内容 - itemIds: {}, 章节数量: {}", 
+                        itemIds, batchResponse.getData() != null ? batchResponse.getData().size() : 0);
+
+                    // 构建原始响应信息（如果需要）
+                    FQBatchChapterResponse.RawApiResponse rawApiResponse = null;
+                    if (includeRawResponse) {
+                        rawApiResponse = new FQBatchChapterResponse.RawApiResponse();
+                        rawApiResponse.setHttpStatus(response.getStatusCode().value());
+                        Map<String, String> responseHeaders = new HashMap<>();
+                        response.getHeaders().forEach((key, values) -> {
+                            if (!values.isEmpty()) {
+                                responseHeaders.put(key, String.join(", ", values));
+                            }
+                        });
+                        rawApiResponse.setHeaders(responseHeaders);
+                        rawApiResponse.setRawBody(new String(responseBytes, StandardCharsets.UTF_8));
+                        rawApiResponse.setBodySize(responseBytes.length);
+                        rawApiResponse.setIsGzip(isGzip);
+                        rawApiResponse.setDecompressedBody(responseBody);
+                        rawApiResponse.setRequestUrl(fullUrl);
+                        rawApiResponse.setRequestTimestamp(requestTimestamp);
+                        rawApiResponse.setResponseTimestamp(responseTimestamp);
+                    }
+
+                    // 成功时重置失败计数
+                    consecutiveFailures = 0;
+                    return FQNovelResponse.success(new BatchFullResponseWithRaw(batchResponse, rawApiResponse));
+
+                } catch (Exception e) {
+                    consecutiveFailures++; // 增加失败计数
+                    log.error("批量获取章节内容失败 - 第{}次尝试, itemIds: {}, 连续失败次数: {}", 
+                        attempt + 1, itemIds, consecutiveFailures, e);
+                    if (attempt < maxAttempts - 1) {
+                        log.warn("准备重试 - 第{}次", attempt + 1);
+                        try {
+                            Thread.sleep(1000 * (attempt + 1));
+                        } catch (InterruptedException ie) {
+                            Thread.currentThread().interrupt();
+                        }
+                        continue;
+                    }
+                    return FQNovelResponse.error("批量获取章节内容失败: " + e.getMessage());
+                }
+            }
+            return FQNovelResponse.error("批量获取章节内容失败: 超过最大重试次数");
         });
     }
 
@@ -542,13 +657,14 @@ public class FQNovelService {
 
                 // 调用批量获取API
                 String itemIdsStr = String.join(",", itemIds);
-                FQNovelResponse<FqIBatchFullResponse> batchResponse = batchFull(itemIdsStr, request.getBookId(), true).get();
+                boolean includeRawResponse = request.getRawResponse() != null && request.getRawResponse();
+                FQNovelResponse<BatchFullResponseWithRaw> batchResponse = batchFullWithRaw(itemIdsStr, request.getBookId(), true, includeRawResponse).get();
 
                 if (batchResponse.getCode() != 0 || batchResponse.getData() == null) {
                     return FQNovelResponse.error("获取批量章节内容失败: " + batchResponse.getMessage());
                 }
 
-                FqIBatchFullResponse batchFullResponse = batchResponse.getData();
+                FqIBatchFullResponse batchFullResponse = batchResponse.getData().getBatchResponse();
                 Map<String, ItemContent> dataMap = batchFullResponse.getData();
 
                 if (dataMap == null) {
@@ -646,6 +762,11 @@ public class FQNovelService {
 
                 response.setChapters(chaptersMap);
                 response.setSuccessCount(successCount);
+
+                // 添加原始API响应信息（如果需要）
+                if (includeRawResponse && batchResponse.getData() != null && batchResponse.getData().getRawApiResponse() != null) {
+                    response.setRawApiResponse(batchResponse.getData().getRawApiResponse());
+                }
 
                 return FQNovelResponse.success(response);
 

@@ -46,4 +46,10 @@ public class FQBatchChapterRequest {
      * 附加的请求头参数 (可选)
      */
     private java.util.Map<String, String> extraHeaders;
+
+    /**
+     * 是否返回原始API响应 (可选, 默认false)
+     * 当设置为true时，响应中会包含原始API的响应数据，用于调试
+     */
+    private Boolean rawResponse = false;
 }

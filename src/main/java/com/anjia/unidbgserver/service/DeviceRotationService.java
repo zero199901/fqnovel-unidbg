@@ -189,6 +189,13 @@ public class DeviceRotationService {
     }
 
     /**
+     * 切换到下一个设备（用于失败重试）
+     */
+    public synchronized void switchToNextDevice() {
+        rotateDevice();
+    }
+
+    /**
      * 获取设备池信息
      */
     public Map<String, Object> getDevicePoolInfo() {
