@@ -21,7 +21,7 @@ public class FQApiProperties {
     /**
      * 默认User-Agent
      */
-    private String userAgent = "com.dragon.read.oversea.gp/68132 (Linux; U; Android 10; zh_CN; OnePlus11; Build/V291IR;tt-ok/3.12.13.4-tiktok)";
+    private String userAgent = "com.dragon.read.oversea.gp/69132 (Linux; U; Android 10; zh_CN; OnePlus11; Build/V291IR;tt-ok/3.12.13.4-tiktok)";
     
     /**
      * Cookie配置
@@ -73,17 +73,17 @@ public class FQApiProperties {
         /**
          * 版本代码
          */
-        private String versionCode = "68132";
+        private String versionCode = "69132";
         
         /**
          * 版本名称
          */
-        private String versionName = "6.8.1.32";
+        private String versionName = "6.9.1.32";
         
         /**
          * 更新版本代码
          */
-        private String updateVersionCode = "68132";
+        private String updateVersionCode = "69132";
         
         /**
          * 设备类型

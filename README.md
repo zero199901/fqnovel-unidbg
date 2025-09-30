@@ -42,7 +42,7 @@
     fq:
       api:
           base-url: https://api5-normal-sinfonlineb.fqnovel.com
-          user-agent: com.dragon.read.oversea.gp/68132 (Linux; U; Android 10; zh_CN; OnePlus11; Build/V291IR;tt-ok/3.12.13.4-tiktok)
+          user-agent: com.dragon.read.oversea.gp/69132 (Linux; U; Android 10; zh_CN; OnePlus11; Build/V291IR;tt-ok/3.12.13.4-tiktok)
           cookie: store-region=cn-zj; store-region-src=did; install_id=933935730456617
           device:
             aid: '1967'
@@ -55,9 +55,9 @@
             install-id: '933935730456617'
             resolution: 3200*1440
             rom-version: V291IR+release-keys
-            update-version-code: '68132'
-            version-code: '68132'
-            version-name: 6.8.1.32
+            update-version-code: '69132'
+            version-code: '69132'
+            version-name: 6.9.1.32
     ```
 
 

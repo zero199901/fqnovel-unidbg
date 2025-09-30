@@ -224,6 +224,54 @@ public class FQNovelController {
     }
 
     /**
+     * 通过书名下载小说 (GET方式)
+     * 支持通过书名直接下载整本书的文本内容
+     * 
+     * @param bookName 书名
+     * @param chapterRange 章节范围，如：1-100
+     * @param includeTitle 是否包含章节标题
+     * @param includeChapterNumber 是否包含章节编号
+     * @param separator 章节间分隔符
+     * @param fileName 文件名
+     * @return 小说文本内容
+     */
+    @GetMapping(value = "/download/by-name", produces = "text/plain;charset=UTF-8")
+    public CompletableFuture<String> downloadByBookName(
+            @RequestParam String bookName,
+            @RequestParam(required = false) String chapterRange,
+            @RequestParam(required = false, defaultValue = "true") Boolean includeTitle,
+            @RequestParam(required = false, defaultValue = "true") Boolean includeChapterNumber,
+            @RequestParam(required = false, defaultValue = "\n\n") String separator,
+            @RequestParam(required = false) String fileName) {
+        
+        if (log.isDebugEnabled()) {
+            log.debug("通过书名下载小说请求 - bookName: {}, chapterRange: {}", bookName, chapterRange);
+        }
+        
+        if (bookName == null || bookName.trim().isEmpty()) {
+            return CompletableFuture.completedFuture("错误: 书名不能为空");
+        }
+        
+        // 构建请求对象
+        FQExportTextRequest request = new FQExportTextRequest();
+        request.setBookName(bookName.trim());
+        request.setChapterRange(chapterRange);
+        request.setIncludeTitle(includeTitle);
+        request.setIncludeChapterNumber(includeChapterNumber);
+        request.setSeparator(separator);
+        request.setFileName(fileName);
+        
+        return fqNovelService.exportText(request)
+                .thenApply(response -> {
+                    if (response.getCode() == 0 && response.getData() != null) {
+                        return response.getData().getContent();
+                    } else {
+                        return "下载失败: " + response.getMessage();
+                    }
+                });
+    }
+
+    /**
      * 健康检查接口
      * 
      * @return 服务状态

@@ -1,6 +1,11 @@
 server:
   port: 9091
   address: 0.0.0.0
+  tomcat:
+    connection-timeout: 300000  # 5分钟连接超时
+  servlet:
+    session:
+      timeout: 300000  # 5分钟会话超时
 
 application:
   unidbg:
@@ -12,7 +17,7 @@ application:
 fq:
     api:
         base-url: https://api5-normal-sinfonlineb.fqnovel.com
-        user-agent: com.dragon.read.oversea.gp/68132 (Linux; U; Android 12; zh_CN; nova9; Build/V417IR;tt-ok/3.12.13.4-tiktok)
+        user-agent: com.dragon.read.oversea.gp/69132 (Linux; U; Android 12; zh_CN; nova9; Build/V417IR;tt-ok/3.12.13.4-tiktok)
         cookie: store-region=cn-zj; store-region-src=did; install_id=1444125752746587;
         proxy:
             enabled: false           # 全局开关：true启用代理，false关闭代理
@@ -41,9 +46,9 @@ fq:
           install-id: '1444125752746587'
           resolution: 2560*1440
           rom-version: V417IR+release-keys
-          update-version-code: '68132'
-          version-code: '68132'
-          version-name: 6.8.1.32
+          update-version-code: '69132'
+          version-code: '69132'
+          version-name: 6.9.1.32
         # 设备轮换配置
         device-rotation:
           enabled: true              # 是否启用设备轮换

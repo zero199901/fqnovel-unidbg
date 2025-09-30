@@ -1077,6 +1077,7 @@ public class FQNovelService {
                     searchRequest.setQuery(bookName.trim());
                     searchRequest.setCount(1);
                     searchRequest.setOffset(0);
+                    searchRequest.setTabType(1); // 设置搜索类型为1（小说）
                     
                     FQNovelResponse<FQSearchResponse> searchResponse = fqSearchService.searchBooks(searchRequest).get();
                     if (searchResponse.getCode() != 0 || searchResponse.getData() == null || 
@@ -1169,10 +1170,15 @@ public class FQNovelService {
                 
                 // 分批处理章节（每批最多30个章节）
                 int batchSize = 30;
+                int totalBatches = (int) Math.ceil((double) itemIds.size() / batchSize);
+                log.info("开始批量处理章节 - 总章节数: {}, 批次数: {}, 每批: {}章", itemIds.size(), totalBatches, batchSize);
+                
                 for (int i = 0; i < itemIds.size(); i += batchSize) {
                     int endIndex = Math.min(i + batchSize, itemIds.size());
                     List<String> batchItemIds = itemIds.subList(i, endIndex);
                     String itemIdsStr = String.join(",", batchItemIds);
+                    int currentBatch = (i / batchSize) + 1;
+                    log.info("处理第{}/{}批章节 - 章节范围: {}-{}, 数量: {}", currentBatch, totalBatches, i+1, endIndex, batchItemIds.size());
                     
                     // 批量获取章节内容
                     FQNovelResponse<BatchFullResponseWithRaw> batchResponse = batchFullWithRaw(itemIdsStr, bookId, true, false).get();

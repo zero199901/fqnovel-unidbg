@@ -238,11 +238,11 @@ class EnhancedDeviceRegisterClient:
             "aid": 1967,
             "channel": "googleplay",
             "package": "com.dragon.read.oversea.gp",
-            "app_version": "6.8.1.32",
-            "version_code": 68132,
-            "update_version_code": 68132,
-            "manifest_version_code": 68132,
-            "app_version_minor": "6.8.1.32",
+            "app_version": "6.9.1.32",
+            "version_code": 69132,
+            "update_version_code": 69132,
+            "manifest_version_code": 69132,
+            "app_version_minor": "6.9.1.32",
             "sdk_version": "3.7.0-rc.25-fanqie-xiaoshuo-opt",
             "sdk_target_version": 29,
             "git_hash": "5b6a0d3",
@@ -256,7 +256,7 @@ class EnhancedDeviceRegisterClient:
     def build_headers(self, device_info: Dict[str, Any]) -> Dict[str, str]:
         """构建请求头"""
         return {
-            "User-Agent": f"com.dragon.read.oversea.gp/68132 (Linux; U; Android {device_info['os_version']}; zh_CN; {device_info['device_model']}; Build/{device_info['rom_version'].split('+')[0]};tt-ok/3.12.13.4-tiktok)",
+            "User-Agent": f"com.dragon.read.oversea.gp/69132 (Linux; U; Android {device_info['os_version']}; zh_CN; {device_info['device_model']}; Build/{device_info['rom_version'].split('+')[0]};tt-ok/3.12.13.4-tiktok)",
             "Accept": "application/json",
             "Accept-Encoding": "gzip",
             "Content-Type": "application/json",
@@ -409,16 +409,16 @@ def generate_xml_config(device_info: Dict[str, Any]) -> Dict[str, Any]:
         "fq": {
             "api": {
                 "base-url": "https://api5-normal-sinfonlineb.fqnovel.com",
-                "user-agent": f"com.dragon.read.oversea.gp/68132 (Linux; U; Android {device_info['os_version']}; zh_CN; {device_info['device_type']}; Build/{device_info['rom_version'].split('+')[0]};tt-ok/3.12.13.4-tiktok)",
+                "user-agent": f"com.dragon.read.oversea.gp/69132 (Linux; U; Android {device_info['os_version']}; zh_CN; {device_info['device_type']}; Build/{device_info['rom_version'].split('+')[0]};tt-ok/3.12.13.4-tiktok)",
                 "cookie": f"store-region=cn-zj; store-region-src=did; install_id={device_info['install_id']};",
                 "device": {
                     "cdid": device_info["cdid"],
                     "install-id": device_info["install_id"],
                     "device-id": device_info["device_id"],
                     "aid": "1967",
-                    "version-code": "68132",
-                    "version-name": "6.8.1.32",
-                    "update-version-code": "68132",
+                    "version-code": "69132",
+                    "version-name": "6.9.1.32",
+                    "update-version-code": "69132",
                     "device-type": device_info["device_type"],
                     "device-brand": device_info["device_brand"],
                     "rom-version": device_info["rom_version"],

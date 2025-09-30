@@ -136,15 +136,15 @@ public class FqVariable {
         this.installId = "933935730456617";
         this.serverDeviceId = "933935730452521";
         this.aid = "1967";
-        this.updateVersionCode = "68132";
+        this.updateVersionCode = "69132";
 
         this.keyRegisterTs = "0";
         this.deviceId = this.serverDeviceId; // 使用serverDeviceId作为deviceId
         this.ac = "wifi";
         this.channel = "googleplay";
         this.appName = "novelapp";
-        this.versionCode = "68132";
-        this.versionName = "6.8.1.32";
+        this.versionCode = "69132";
+        this.versionName = "6.9.1.32";
         this.devicePlatform = "android";
         this.os = "android";
         this.ssmix = "a";
@@ -153,13 +153,13 @@ public class FqVariable {
         this.language = "zh";
         this.osApi = "32";
         this.osVersion = "12";
-        this.manifestVersionCode = "68132";
+        this.manifestVersionCode = "69132";
         this.resolution = "3200*1440";
         this.dpi = "320";
         this.rticket = String.valueOf(System.currentTimeMillis());
         this.hostAbi = "arm64-v8a";
         this.dragonDeviceType = "phone";
-        this.pvPlayer = "68132";
+        this.pvPlayer = "69132";
         this.complianceStatus = "0";
         this.needPersonalRecommend = "1";
         this.playerSoLoad = "1";

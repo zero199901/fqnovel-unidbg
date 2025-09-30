@@ -34,7 +34,7 @@ public class IdleFQ extends AbstractJni implements IOResolver<AndroidFileIO> {
 
     // 资源路径常量
     private static final String BASE_PATH = "com/dragon/read/oversea/gp";
-    private static final String APK_PATH = BASE_PATH + "/apk/番茄小说_6.8.1.32.apk";
+    private static final String APK_PATH = BASE_PATH + "/apk/番茄小说_6.9.1.32.apk";
     private static final String SO_METASEC_ML_PATH = BASE_PATH + "/lib/libmetasec_ml.so";
     private static final String SO_C_SHARE_PATH = BASE_PATH + "/lib/libc++_shared.so";
     private static final String ROOTFS_PATH = BASE_PATH + "/rootfs";
@@ -277,9 +277,9 @@ public class IdleFQ extends AbstractJni implements IOResolver<AndroidFileIO> {
             case 33554434:
                 return DvmBoolean.valueOf(vm, true);
             case 16777232:
-                return vm.resolveClass("java.lang.Integer").newObject(68132);
+                return vm.resolveClass("java.lang.Integer").newObject(69132);
             case 16777233:
-                return new StringObject(vm, "6.8.1.32");
+                return new StringObject(vm, "6.9.1.32");
             case 16777218: {
                 // 返回证书文件的字节数组
                 try {
