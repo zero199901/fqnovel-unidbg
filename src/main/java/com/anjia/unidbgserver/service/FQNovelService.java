@@ -968,7 +968,15 @@ public class FQNovelService {
             }
 
             List<FQDirectoryResponse.CatalogItem> catalogItems = directoryResponse.getData().getCatalogData();
-            if (catalogItems == null || catalogItems.isEmpty()) {
+            List<FQDirectoryResponse.ItemData> itemDataList = directoryResponse.getData().getItemDataList();
+            
+            // 优先使用itemDataList，备用使用catalogItems
+            List<?> chapterList;
+            if (itemDataList != null && !itemDataList.isEmpty()) {
+                chapterList = itemDataList;
+            } else if (catalogItems != null && !catalogItems.isEmpty()) {
+                chapterList = catalogItems;
+            } else {
                 log.error("书籍目录为空 - bookId: {}", bookId);
                 return itemIds;
             }
@@ -980,15 +988,21 @@ public class FQNovelService {
                     int position = Integer.parseInt(positionStr);
                     int index = position - 1; // 转换为0基索引
 
-                    if (index >= 0 && index < catalogItems.size()) {
-                        String itemId = catalogItems.get(index).getItemId();
+                    if (index >= 0 && index < chapterList.size()) {
+                        String itemId;
+                        if (chapterList.get(0) instanceof FQDirectoryResponse.ItemData) {
+                            itemId = ((FQDirectoryResponse.ItemData) chapterList.get(index)).getItemId();
+                        } else {
+                            itemId = ((FQDirectoryResponse.CatalogItem) chapterList.get(index)).getItemId();
+                        }
+                        
                         if (itemId != null && !itemId.trim().isEmpty()) {
                             itemIds.add(itemId);
                         } else {
                             log.warn("章节位置 {} 对应的itemId为空 - bookId: {}", position, bookId);
                         }
                     } else {
-                        log.warn("章节位置 {} 超出范围，总章节数: {} - bookId: {}", position, catalogItems.size(), bookId);
+                        log.warn("章节位置 {} 超出范围，总章节数: {} - bookId: {}", position, chapterList.size(), bookId);
                     }
                 } catch (NumberFormatException e) {
                     log.error("无效的章节位置: {} - bookId: {}", positionStr, bookId, e);
@@ -1124,9 +1138,18 @@ public class FQNovelService {
                     // 导出所有章节
                     chapterIds = new ArrayList<>();
                     itemIds = new ArrayList<>();
-                    for (FQDirectoryResponse.CatalogItem item : catalogItems) {
-                        chapterIds.add(item.getItemId());
-                        itemIds.add(item.getItemId());
+                    if (itemDataList != null && !itemDataList.isEmpty()) {
+                        // 优先使用itemDataList
+                        for (FQDirectoryResponse.ItemData item : itemDataList) {
+                            chapterIds.add(item.getItemId());
+                            itemIds.add(item.getItemId());
+                        }
+                    } else if (catalogItems != null && !catalogItems.isEmpty()) {
+                        // 备用使用catalogItems
+                        for (FQDirectoryResponse.CatalogItem item : catalogItems) {
+                            chapterIds.add(item.getItemId());
+                            itemIds.add(item.getItemId());
+                        }
                     }
                 }
                 
