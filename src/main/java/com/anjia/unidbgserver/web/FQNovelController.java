@@ -2,6 +2,7 @@ package com.anjia.unidbgserver.web;
 
 import com.anjia.unidbgserver.dto.FQNovelBookInfo;
 import com.anjia.unidbgserver.dto.FQNovelChapterInfo;
+import com.anjia.unidbgserver.dto.FQNovelChapterInfoWithRaw;
 import com.anjia.unidbgserver.dto.FQNovelRequest;
 import com.anjia.unidbgserver.dto.FQNovelResponse;
 import com.anjia.unidbgserver.dto.FQBatchChapterRequest;
@@ -62,12 +63,13 @@ public class FQNovelController {
      * @return 章节内容信息
      */
     @GetMapping("/chapter/{bookId}/{chapterId}")
-    public CompletableFuture<FQNovelResponse<FQNovelChapterInfo>> getChapterContent(
+    public CompletableFuture<FQNovelResponse<FQNovelChapterInfoWithRaw>> getChapterContent(
             @PathVariable String bookId,
             @PathVariable String chapterId,
             @RequestParam(required = false) String deviceId,
             @RequestParam(required = false) String iid,
             @RequestParam(required = false) String token,
+            @RequestParam(required = false) Boolean rawResponse,
             HttpServletRequest httpRequest) {
         
         if (log.isDebugEnabled()) {
@@ -93,12 +95,13 @@ public class FQNovelController {
         request.setDeviceId(deviceId);
         request.setIid(iid);
         request.setToken(token);
+        request.setRawResponse(rawResponse != null ? rawResponse : false);
         
         // 提取额外的请求头
         Map<String, String> extraHeaders = extractExtraHeaders(httpRequest);
         request.setExtraHeaders(extraHeaders);
         
-        return fqNovelService.getChapterContent(request);
+        return fqNovelService.getChapterContentWithRaw(request);
     }
 
     /**

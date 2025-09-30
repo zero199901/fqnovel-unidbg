@@ -477,6 +477,22 @@ public class FQNovelService {
      * @return 章节内容
      */
     public CompletableFuture<FQNovelResponse<FQNovelChapterInfo>> getChapterContent(FQNovelRequest request) {
+        return getChapterContentWithRaw(request).thenApply(response -> {
+            if (response.getCode() == 0) {
+                return FQNovelResponse.success(response.getData().getChapterInfo());
+            } else {
+                return FQNovelResponse.error(response.getMessage());
+            }
+        });
+    }
+
+    /**
+     * 获取章节内容 (包含原始API响应)
+     *
+     * @param request 包含书籍ID和章节ID的请求
+     * @return 章节内容和原始API响应
+     */
+    public CompletableFuture<FQNovelResponse<FQNovelChapterInfoWithRaw>> getChapterContentWithRaw(FQNovelRequest request) {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 if (request.getBookId() == null || request.getChapterId() == null) {
@@ -485,13 +501,14 @@ public class FQNovelService {
 
                 // 使用batch_full API获取完整响应数据
                 String itemIds = request.getChapterId();
-                FQNovelResponse<FqIBatchFullResponse> batchResponse = batchFull(itemIds, request.getBookId(), false).get();
+                boolean includeRawResponse = request.getRawResponse() != null && request.getRawResponse();
+                FQNovelResponse<BatchFullResponseWithRaw> batchResponse = batchFullWithRaw(itemIds, request.getBookId(), false, includeRawResponse).get();
 
                 if (batchResponse.getCode() != 0 || batchResponse.getData() == null) {
                     return FQNovelResponse.error("获取章节内容失败: " + batchResponse.getMessage());
                 }
 
-                FqIBatchFullResponse batchFullResponse = batchResponse.getData();
+                FqIBatchFullResponse batchFullResponse = batchResponse.getData().getBatchResponse();
                 Map<String, ItemContent> dataMap = batchFullResponse.getData();
 
                 if (dataMap == null || dataMap.isEmpty()) {
@@ -512,6 +529,19 @@ public class FQNovelService {
                     return FQNovelResponse.error("未找到章节内容");
                 }
 
+                // 检查章节是否有错误码（表示章节无法访问）
+                if (itemContent.getCode() != 0) {
+                    log.warn("章节访问失败 - chapterId: {}, 错误码: {}", chapterId, itemContent.getCode());
+                    return FQNovelResponse.error("章节无法访问，错误码: " + itemContent.getCode() + 
+                        "。可能原因：章节不存在、需要付费或已被限制访问");
+                }
+
+                // 检查章节内容是否为空
+                if (itemContent.getContent() == null || itemContent.getContent().trim().isEmpty()) {
+                    log.warn("章节内容为空 - chapterId: {}", chapterId);
+                    return FQNovelResponse.error("章节内容为空，可能该章节不存在或已被删除");
+                }
+
                 // 解密章节内容
                 String decryptedContent = "";
                 try {
@@ -519,8 +549,8 @@ public class FQNovelService {
                     String key = registerKeyService.getDecryptionKey(contentKeyver);
                     decryptedContent = FqCrypto.decryptAndDecompressContent(itemContent.getContent(), key);
                 } catch (Exception e) {
-                    log.error("解密章节内容失败 - chapterId: {}", chapterId, e);
-                    return FQNovelResponse.error("解密章节内容失败: " + e.getMessage());
+                    log.error("解密章节内容失败 - chapterId: {}, 错误详情: {}", chapterId, e.getMessage());
+                    return FQNovelResponse.error("章节内容解密失败，可能该章节不存在或内容已损坏");
                 }
 
                 // 从HTML中提取纯文本内容
@@ -554,7 +584,27 @@ public class FQNovelService {
                 chapterInfo.setWordCount(txtContent.length());
                 chapterInfo.setUpdateTime(System.currentTimeMillis());
 
-                return FQNovelResponse.success(chapterInfo);
+                // 构建包含原始响应的响应对象
+                FQNovelChapterInfoWithRaw responseWithRaw = new FQNovelChapterInfoWithRaw();
+                responseWithRaw.setChapterInfo(chapterInfo);
+                
+                // 如果请求包含原始响应，则添加原始API响应数据
+                if (includeRawResponse && batchResponse.getData().getRawApiResponse() != null) {
+                    FQBatchChapterResponse.RawApiResponse sourceRaw = batchResponse.getData().getRawApiResponse();
+                    FQNovelChapterInfoWithRaw.RawApiResponse targetRaw = new FQNovelChapterInfoWithRaw.RawApiResponse();
+                    targetRaw.setHttpStatus(sourceRaw.getHttpStatus());
+                    targetRaw.setHeaders(sourceRaw.getHeaders());
+                    targetRaw.setRawBody(sourceRaw.getRawBody());
+                    targetRaw.setBodySize(sourceRaw.getBodySize());
+                    targetRaw.setIsGzip(sourceRaw.getIsGzip());
+                    targetRaw.setDecompressedBody(sourceRaw.getDecompressedBody());
+                    targetRaw.setRequestUrl(sourceRaw.getRequestUrl());
+                    targetRaw.setRequestTimestamp(sourceRaw.getRequestTimestamp());
+                    targetRaw.setResponseTimestamp(sourceRaw.getResponseTimestamp());
+                    responseWithRaw.setRawApiResponse(targetRaw);
+                }
+
+                return FQNovelResponse.success(responseWithRaw);
 
             } catch (Exception e) {
                 log.error("获取章节内容失败 - bookId: {}, chapterId: {}",
@@ -626,6 +676,13 @@ public class FQNovelService {
                     return FQNovelResponse.error("章节范围或章节ids不能为空");
                 }
 
+                // 预检查：如果使用章节范围，先检查书籍是否有目录
+                if (request.getChapterRange() != null && !request.getChapterRange().trim().isEmpty()) {
+                    if (!hasValidDirectory(request.getBookId())) {
+                        return FQNovelResponse.error("书籍目录为空或无效，无法获取章节内容。请先检查书籍状态：/api/fqnovel/book/" + request.getBookId());
+                    }
+                }
+
                 List<String> itemIds = new ArrayList<>();
                 List<String> chapterIds;
 
@@ -652,7 +709,17 @@ public class FQNovelService {
                 }
 
                 if (itemIds.isEmpty()) {
-                    return FQNovelResponse.error("无法获取章节对应的itemIds，请检查章节范围是否有效");
+                    // 提供更详细的错误信息和解决建议
+                    String errorMessage = "无法获取章节对应的itemIds，可能的原因：\n" +
+                        "1. 书籍没有章节内容（目录为空）\n" +
+                        "2. 章节范围超出书籍实际章节数\n" +
+                        "3. 书籍状态异常或已下架\n\n" +
+                        "建议解决方案：\n" +
+                        "1. 先调用 /api/fqnovel/book/{bookId} 检查书籍信息\n" +
+                        "2. 调用 /api/fqsearch/directory/{bookId} 检查目录是否为空\n" +
+                        "3. 使用有效的章节范围（如1-1, 1-5等）\n" +
+                        "4. 如果使用章节ID列表，请确保itemIds有效";
+                    return FQNovelResponse.error(errorMessage);
                 }
 
                 // 调用批量获取API
@@ -676,17 +743,39 @@ public class FQNovelService {
                 response.setBookId(request.getBookId());
                 response.setRequestedRange(request.getChapterRange());
                 response.setTotalRequested(chapterIds.size());
-                // 获取第一个itemId的novelData信息
-                FQNovelData novelData = dataMap.get(itemIds.get(0)).getNovelData();
-
+                
                 // 构建书籍信息 (简化版本)
                 FQNovelBookInfo bookInfo = new FQNovelBookInfo();
                 bookInfo.setBookId(request.getBookId());
-                bookInfo.setBookName(novelData.getBookName());
-                bookInfo.setAuthor(novelData.getAuthor());
-                bookInfo.setCoverUrl(novelData.getThumbUrl());
-                bookInfo.setStatus(novelData.getStatus());
-                bookInfo.setTotalChapters(novelData.getWordNumber());
+                
+                // 尝试从第一个章节获取书籍信息，如果失败则使用默认值
+                try {
+                    ItemContent firstItem = dataMap.get(itemIds.get(0));
+                    if (firstItem != null && firstItem.getNovelData() != null) {
+                        FQNovelData novelData = firstItem.getNovelData();
+                        bookInfo.setBookName(novelData.getBookName());
+                        bookInfo.setAuthor(novelData.getAuthor());
+                        bookInfo.setCoverUrl(novelData.getThumbUrl());
+                        bookInfo.setStatus(novelData.getStatus());
+                        bookInfo.setTotalChapters(novelData.getWordNumber());
+                    } else {
+                        // 如果无法获取novelData，使用默认值
+                        log.warn("无法从章节数据获取书籍信息，使用默认值 - bookId: {}", request.getBookId());
+                        bookInfo.setBookName("未知书名");
+                        bookInfo.setAuthor("未知作者");
+                        bookInfo.setCoverUrl(null);
+                        bookInfo.setStatus(1);
+                        bookInfo.setTotalChapters(0);
+                    }
+                } catch (Exception e) {
+                    log.warn("构建书籍信息失败，使用默认值 - bookId: {}", request.getBookId(), e);
+                    bookInfo.setBookName("未知书名");
+                    bookInfo.setAuthor("未知作者");
+                    bookInfo.setCoverUrl(null);
+                    bookInfo.setStatus(1);
+                    bookInfo.setTotalChapters(0);
+                }
+                
                 response.setBookInfo(bookInfo);
 
                 // 处理每个章节
@@ -699,6 +788,13 @@ public class FQNovelService {
 
                         if (itemContent == null) {
                             log.warn("未找到章节内容 - itemId: {}", itemId);
+                            continue;
+                        }
+
+                        // 检查章节是否有错误码（表示章节无法访问）
+                        if (itemContent.getCode() != 0) {
+                            log.warn("章节访问失败 - itemId: {}, 错误码: {}", 
+                                itemId, itemContent.getCode());
                             continue;
                         }
 
@@ -904,5 +1000,42 @@ public class FQNovelService {
         }
 
         return itemIds;
+    }
+
+    /**
+     * 检查书籍是否有有效的目录
+     *
+     * @param bookId 书籍ID
+     * @return true如果有有效目录，false如果目录为空或无效
+     */
+    private boolean hasValidDirectory(String bookId) {
+        try {
+            // 构建目录请求
+            FQDirectoryRequest directoryRequest = new FQDirectoryRequest();
+            directoryRequest.setBookId(bookId);
+            directoryRequest.setBookType(0);
+            directoryRequest.setNeedVersion(true);
+
+            // 获取书籍目录
+            FQNovelResponse<FQDirectoryResponse> directoryResponse = fqSearchService.getBookDirectory(directoryRequest).get();
+
+            if (directoryResponse.getCode() != 0 || directoryResponse.getData() == null) {
+                log.warn("获取书籍目录失败 - bookId: {}, error: {}", bookId, directoryResponse.getMessage());
+                return false;
+            }
+
+            List<FQDirectoryResponse.CatalogItem> catalogItems = directoryResponse.getData().getCatalogData();
+            if (catalogItems == null || catalogItems.isEmpty()) {
+                log.warn("书籍目录为空 - bookId: {}", bookId);
+                return false;
+            }
+
+            log.debug("书籍目录有效 - bookId: {}, 章节数: {}", bookId, catalogItems.size());
+            return true;
+
+        } catch (Exception e) {
+            log.error("检查书籍目录失败 - bookId: {}", bookId, e);
+            return false;
+        }
     }
 }
