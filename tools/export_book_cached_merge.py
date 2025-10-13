@@ -57,7 +57,7 @@ def normalize_title(n: int, title: str) -> str:
 
 def main():
     # CLI:
-    # 1) python3 tools/export_book_cached_merge.py <bookId>
+    # 1) python tools/export_book_cached_merge.py <bookId>
     #    -> outputs to results/novels/<bookName or bookId>.txt
     # 2) python3 tools/export_book_cached_merge.py <bookId> <outputPath> [maxChapters]
     if len(sys.argv) < 2:
@@ -110,7 +110,7 @@ def main():
                 text = html_to_text(ch.get('rawContent') or '')
             if not text.endswith('\n'):
                 text += '\n'
-            f.write(f'第{i}章 {title}\n\n')
+            # f.write(f'第{i}章 {title}\n\n')
             f.write(text)
             f.write('\n')
     print(f'Merged {len(ids)}/{total} chapters -> {output_path}')
