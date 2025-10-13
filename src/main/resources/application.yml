@@ -1,35 +1,30 @@
 server:
   port: 9999
   address: 0.0.0.0
-
 application:
   unidbg:
     dynarmic: false
     verbose: false
     async: false
-
-# FQ API 配置
 fq:
-    api:
-        base-url: https://api5-normal-sinfonlineb.fqnovel.com
-        user-agent: com.dragon.read.oversea.gp/68132 (Linux; U; Android 14; zh_CN; 2012123AC; Build/V451IR;tt-ok/3.12.13.4-tiktok)
-        cookie: store-region=cn-zj; store-region-src=did; install_id=582117512755339;
-        device:
-          aid: '1967'
-          cdid: a4dd2cc8-ec60-41f3-8601-57dc01f35a89
-          device-brand: Xiaomi
-          device-id: '582117512751243'
-          device-type: 2012123AC
-          dpi: '480'
-          host-abi: arm64-v8a
-          install-id: '582117512755339'
-          resolution: 2400*1080
-          rom-version: V451IR+release-keys
-          update-version-code: '68132'
-          version-code: '68132'
-          version-name: 6.8.1.32
-
-
+  api:
+    cookie: store-region=cn-zj; store-region-src=did; install_id=9573416740669858;
+    device:
+      host-abi: armeabi-v7a
+      version-name: 6.8.1.32
+      update-version-code: '68132'
+      install-id: '9573416740669858'
+      rom-version: V433IR+release-keys
+      device-brand: Samsung
+      device-id: '8799208778332873'
+      resolution: 2560*1440
+      cdid: af4773d4-ec1b-49bf-a87e-345a195a80c7
+      device-type: GalaxyS23
+      version-code: '68132'
+      dpi: '560'
+      aid: '1967'
+    user-agent: com.dragon.read.oversea.gp/68132 (Linux; U; Android 13; zh_CN; GalaxyS23;
+      Build/V433IR;tt-ok/3.12.13.4-tiktok)
 spring:
   application:
     name: unidbg-boot-server
@@ -42,7 +37,6 @@ spring:
         core-size: 8
         keep-alive: 60s
         max-size: 8
-  # Redis配置
   redis:
     host: 60.205.188.67
     port: 26586

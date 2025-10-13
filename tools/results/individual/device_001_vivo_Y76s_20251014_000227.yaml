@@ -1,0 +1,20 @@
+fq:
+  api:
+    base-url: https://api5-normal-sinfonlineb.fqnovel.com
+    cookie: store-region=cn-zj; store-region-src=did; install_id=3907040785728602;
+    device:
+      aid: '1967'
+      cdid: ca8e95ad-6824-4edc-ac94-7ece295b2539
+      device-brand: vivo
+      device-id: '3907040785478746'
+      device-type: Y76s
+      dpi: '640'
+      host-abi: armeabi-v7a
+      install-id: '3907040785728602'
+      resolution: 3200*1440
+      rom-version: V451IR+release-keys
+      update-version-code: '68132'
+      version-code: '68132'
+      version-name: 6.8.1.32
+    user-agent: com.dragon.read.oversea.gp/68132 (Linux; U; Android 14; zh_CN; Y76s;
+      Build/V451IR;tt-ok/3.12.13.4-tiktok)

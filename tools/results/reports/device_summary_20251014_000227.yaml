@@ -1,0 +1,12 @@
+devices:
+- brand: vivo
+  cdid: ca8e95ad-6824-4edc-ac94-7ece295b2539
+  device_id: '3907040785478746'
+  dpi: '640'
+  index: 1
+  install_id: '3907040785728602'
+  model: Y76s
+  resolution: 3200*1440
+  rom_version: V451IR+release-keys
+timestamp: '20251014_000227'
+total_devices: 1

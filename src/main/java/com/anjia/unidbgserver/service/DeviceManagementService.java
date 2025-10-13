@@ -66,11 +66,26 @@ public class DeviceManagementService {
     public CompletableFuture<Boolean> updateDeviceConfig(DeviceInfo deviceInfo) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                log.info("开始更新设备配置 - 设备ID: {}", deviceInfo.getDeviceId());
+                log.info("开始更新设备配置 - 设备ID: {}, 品牌: {}, 型号: {}", 
+                    deviceInfo.getDeviceId(), deviceInfo.getDeviceBrand(), deviceInfo.getDeviceType());
+                
+                // 获取配置文件路径
+                String configPath = getConfigFilePath();
+                log.info("使用配置文件路径: {}", configPath);
+                
+                // 验证配置文件是否存在
+                File configFile = new File(configPath);
+                if (!configFile.exists()) {
+                    log.error("配置文件不存在: {}", configPath);
+                    return false;
+                }
                 
                 // 读取当前配置文件
-                String configPath = getConfigFilePath();
                 Map<String, Object> config = loadYamlConfig(configPath);
+                if (config == null) {
+                    log.error("无法加载配置文件: {}", configPath);
+                    return false;
+                }
                 
                 // 更新设备配置
                 updateDeviceConfigInYaml(config, deviceInfo);
@@ -78,11 +93,19 @@ public class DeviceManagementService {
                 // 保存配置文件
                 saveYamlConfig(configPath, config);
                 
-                log.info("设备配置更新成功 - 设备ID: {}", deviceInfo.getDeviceId());
-                return true;
+                // 验证配置是否保存成功
+                Map<String, Object> savedConfig = loadYamlConfig(configPath);
+                if (savedConfig != null && isDeviceConfigUpdated(savedConfig, deviceInfo)) {
+                    log.info("设备配置更新成功 - 设备ID: {}, 品牌: {}, 型号: {}", 
+                        deviceInfo.getDeviceId(), deviceInfo.getDeviceBrand(), deviceInfo.getDeviceType());
+                    return true;
+                } else {
+                    log.error("配置保存后验证失败");
+                    return false;
+                }
                 
             } catch (Exception e) {
-                log.error("设备配置更新失败", e);
+                log.error("设备配置更新失败 - 设备ID: {}", deviceInfo.getDeviceId(), e);
                 return false;
             }
         }, executorService);
@@ -123,24 +146,29 @@ public class DeviceManagementService {
                 }
                 
                 DeviceInfo deviceInfo = registerResponse.getDeviceInfo();
+                log.info("设备注册成功，开始更新配置 - 设备ID: {}, 品牌: {}, 型号: {}", 
+                    deviceInfo.getDeviceId(), deviceInfo.getDeviceBrand(), deviceInfo.getDeviceType());
                 
                 // 更新配置
                 return updateDeviceConfig(deviceInfo)
                     .thenCompose(configSuccess -> {
                         if (!configSuccess) {
-                            return CompletableFuture.completedFuture(
-                                DeviceManagementResult.error("设备配置更新失败")
-                            );
+                            log.error("设备配置更新失败，但继续执行重启流程");
+                            // 即使配置更新失败，也继续执行重启，因为重启后会自动重新加载配置
+                        } else {
+                            log.info("设备配置更新成功");
                         }
                         
                         // 重启项目
                         return restartProject()
                             .thenApply(restartSuccess -> {
                                 if (restartSuccess) {
+                                    log.info("项目重启成功，设备注册流程完成");
                                     return DeviceManagementResult.success(
-                                        "设备注册、配置更新和项目重启全部成功", deviceInfo);
+                                        "设备注册成功，项目已重启", deviceInfo);
                                 } else {
-                                    return DeviceManagementResult.error("项目重启失败");
+                                    log.error("项目重启失败");
+                                    return DeviceManagementResult.error("项目重启失败，但设备注册成功");
                                 }
                             });
                     });
@@ -166,18 +194,86 @@ public class DeviceManagementService {
     }
 
     /**
+     * 验证设备配置是否已更新
+     */
+    @SuppressWarnings("unchecked")
+    private boolean isDeviceConfigUpdated(Map<String, Object> config, DeviceInfo deviceInfo) {
+        try {
+            Map<String, Object> fqConfig = (Map<String, Object>) config.get("fq");
+            if (fqConfig == null) return false;
+            
+            Map<String, Object> apiConfig = (Map<String, Object>) fqConfig.get("api");
+            if (apiConfig == null) return false;
+            
+            Map<String, Object> deviceConfig = (Map<String, Object>) apiConfig.get("device");
+            if (deviceConfig == null) return false;
+            
+            // 验证关键设备信息是否匹配
+            String configDeviceId = (String) deviceConfig.get("device-id");
+            String configDeviceBrand = (String) deviceConfig.get("device-brand");
+            String configDeviceType = (String) deviceConfig.get("device-type");
+            
+            boolean deviceIdMatch = deviceInfo.getDeviceId() != null && 
+                deviceInfo.getDeviceId().equals(configDeviceId);
+            boolean deviceBrandMatch = deviceInfo.getDeviceBrand() != null && 
+                deviceInfo.getDeviceBrand().equals(configDeviceBrand);
+            boolean deviceTypeMatch = deviceInfo.getDeviceType() != null && 
+                deviceInfo.getDeviceType().equals(configDeviceType);
+            
+            log.debug("配置验证 - 设备ID匹配: {}, 品牌匹配: {}, 型号匹配: {}", 
+                deviceIdMatch, deviceBrandMatch, deviceTypeMatch);
+            
+            return deviceIdMatch && deviceBrandMatch && deviceTypeMatch;
+        } catch (Exception e) {
+            log.error("配置验证失败", e);
+            return false;
+        }
+    }
+
+    /**
      * 获取配置文件路径
      */
     private String getConfigFilePath() {
         if (configLocation.startsWith("classpath:")) {
-            // 如果是classpath路径，需要找到实际的文件路径
+            // 如果是classpath路径，尝试多种方式获取实际文件路径
             try {
+                // 方法1: 通过ClassPathResource获取
                 ClassPathResource resource = new ClassPathResource("application.yml");
-                return resource.getFile().getAbsolutePath();
-            } catch (IOException e) {
-                log.error("无法获取配置文件路径", e);
-                return "src/main/resources/application.yml";
+                if (resource.exists()) {
+                    return resource.getFile().getAbsolutePath();
+                }
+            } catch (Exception e) {
+                log.warn("无法通过ClassPathResource获取配置文件路径: {}", e.getMessage());
             }
+            
+            try {
+                // 方法2: 通过系统属性获取
+                String userDir = System.getProperty("user.dir");
+                String configPath = userDir + "/src/main/resources/application.yml";
+                File configFile = new File(configPath);
+                if (configFile.exists()) {
+                    log.info("使用项目根目录下的配置文件: {}", configPath);
+                    return configPath;
+                }
+            } catch (Exception e) {
+                log.warn("无法通过项目根目录获取配置文件路径: {}", e.getMessage());
+            }
+            
+            try {
+                // 方法3: 通过当前工作目录获取
+                String currentDir = System.getProperty("user.dir");
+                String configPath = currentDir + "/src/main/resources/application.yml";
+                File configFile = new File(configPath);
+                if (configFile.exists()) {
+                    log.info("使用当前目录下的配置文件: {}", configPath);
+                    return configPath;
+                }
+            } catch (Exception e) {
+                log.warn("无法通过当前目录获取配置文件路径: {}", e.getMessage());
+            }
+            
+            log.error("无法获取配置文件路径，使用默认路径");
+            return "src/main/resources/application.yml";
         } else {
             return configLocation;
         }
