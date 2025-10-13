@@ -296,6 +296,33 @@ public class FullBookDownloadService {
                 }
                 int totalChapters = bookInfo.getTotalChapters();
                 long downloadedCount = redisService.getBookDownloadedChapterCount(bookId);
+
+                // 回退策略：如果总章节数为0或未设置，则重新拉取并从目录计算
+                if (totalChapters <= 0) {
+                    try {
+                        FQNovelResponse<FQNovelBookInfo> fresh = fqNovelService.getBookInfo(bookId).get();
+                        if (fresh.getCode() == 0 && fresh.getData() != null) {
+                            bookInfo = fresh.getData();
+                            totalChapters = bookInfo.getTotalChapters();
+                        }
+                    } catch (Exception ignored) {
+                    }
+
+                    if (totalChapters <= 0) {
+                        try {
+                            List<String> chapterIds = getBookChapterIds(bookId).get();
+                            if (chapterIds != null) {
+                                totalChapters = chapterIds.size();
+                            }
+                        } catch (Exception ignored) {
+                        }
+                    }
+
+                    // 最后兜底：至少不小于已下载数量，避免出现 completed=true 但 total=0 的矛盾
+                    if (totalChapters <= 0 && downloadedCount > 0) {
+                        totalChapters = (int) downloadedCount;
+                    }
+                }
                 
                 Map<String, Object> progress = new HashMap<>();
                 progress.put("bookId", bookId);
