@@ -124,18 +124,12 @@ public class FQNovelService {
                         }
                         log.warn("GZIP 解压失败或非GZIP响应，尝试直接读取文本。", e);
 
-                        // 如果是非GZIP且包含非法访问，触发自动重启并重试
+                        // 如果是非GZIP且包含非法访问，记录警告但不自动重启
                         String em = e.getMessage() != null ? e.getMessage() : "";
-                        if ((em.contains("Not in GZIP format") || (responseBody != null && responseBody.contains("ILLEGAL_ACCESS"))) && attempt < maxAttempts) {
-                            try {
-                                log.warn("检测到非法访问或非GZIP响应，自动注册设备并重启后重试。attempt={}", attempt);
-                                DeviceRegisterRequest req = DeviceRegisterRequest.builder().build();
-                                deviceManagementService.registerDeviceAndRestart(req).get();
-                            } catch (Exception regEx) {
-                                log.error("自动注册新设备并重启失败", regEx);
-                                return FQNovelResponse.error("批量获取章节内容失败: 非法访问/响应异常");
-                            }
-                            continue;
+                        if (em.contains("Not in GZIP format") || (responseBody != null && responseBody.contains("ILLEGAL_ACCESS"))) {
+                            log.warn("检测到非法访问或非GZIP响应，建议手动更新设备信息。attempt={}, error={}", attempt, em);
+                            // 不再自动重启，直接返回错误
+                            return FQNovelResponse.error("批量获取章节内容失败: 非法访问/响应异常，请手动更新设备信息");
                         }
                     }
 
@@ -150,17 +144,8 @@ public class FQNovelService {
 
                     // 解析响应
                     if (responseBody.contains("\"code\":110") || responseBody.contains("ILLEGAL_ACCESS")) {
-                        if (attempt < maxAttempts) {
-                            log.warn("检测到ILLEGAL_ACCESS，自动注册设备并重启后重试。attempt={}", attempt);
-                            try {
-                                DeviceRegisterRequest req = DeviceRegisterRequest.builder().build();
-                                deviceManagementService.registerDeviceAndRestart(req).get();
-                            } catch (Exception regEx) {
-                                log.error("自动注册新设备并重启失败", regEx);
-                                return FQNovelResponse.error("批量获取章节内容失败: ILLEGAL_ACCESS");
-                            }
-                            continue;
-                        }
+                        log.warn("检测到ILLEGAL_ACCESS，建议手动更新设备信息。attempt={}", attempt);
+                        return FQNovelResponse.error("批量获取章节内容失败: ILLEGAL_ACCESS，请手动更新设备信息");
                     }
                     FqIBatchFullResponse batchResponse = objectMapper.readValue(responseBody, FqIBatchFullResponse.class);
                     return FQNovelResponse.success(batchResponse);
@@ -169,29 +154,13 @@ public class FQNovelService {
                     String message = e.getMessage() != null ? e.getMessage() : "";
                     boolean parseEmpty = message.contains("No content to map due to end-of-input");
                     boolean gzipErr = message.contains("Not in GZIP format");
-                    if ((gzipErr) && attempt < maxAttempts) {
-                        log.warn("检测到GZIP解析异常，自动注册设备并重启后重试。attempt={}", attempt);
-                        try {
-                            DeviceRegisterRequest req = DeviceRegisterRequest.builder().build();
-                            deviceManagementService.registerDeviceAndRestart(req).get();
-                        } catch (Exception regEx) {
-                            log.error("自动注册新设备并重启失败", regEx);
-                            return FQNovelResponse.error("批量获取章节内容失败: " + message);
-                        }
-                        continue;
+                    if (gzipErr) {
+                        log.warn("检测到GZIP解析异常，建议手动更新设备信息。attempt={}, error={}", attempt, message);
+                        return FQNovelResponse.error("批量获取章节内容失败: GZIP解析异常，请手动更新设备信息");
                     }
-                    if (parseEmpty && attempt < maxAttempts) {
-                        log.warn("检测到空响应导致解析失败，尝试自动注册新设备并重试。attempt={}", attempt);
-                        try {
-                            DeviceRegisterRequest req = DeviceRegisterRequest.builder().build();
-                            deviceManagementService.registerDeviceAndRestart(req).get();
-                        } catch (Exception regEx) {
-                            log.error("自动注册新设备失败", regEx);
-                            // 不再重试，直接返回
-                            return FQNovelResponse.error("批量获取章节内容失败: " + message);
-                        }
-                        // 继续下一次循环重试
-                        continue;
+                    if (parseEmpty) {
+                        log.warn("检测到空响应导致解析失败，建议手动更新设备信息。attempt={}, error={}", attempt, message);
+                        return FQNovelResponse.error("批量获取章节内容失败: 空响应，请手动更新设备信息");
                     }
 
                     log.error("批量获取章节内容失败 - itemIds: {}", itemIds, e);

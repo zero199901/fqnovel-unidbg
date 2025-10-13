@@ -8,22 +8,22 @@ application:
     async: false
 fq:
   api:
-    cookie: store-region=cn-zj; store-region-src=did; install_id=9573416740669858;
+    cookie: store-region=cn-zj; store-region-src=did; install_id=9430068375191189;
     device:
-      host-abi: armeabi-v7a
+      host-abi: arm64-v8a
       version-name: 6.8.1.32
       update-version-code: '68132'
-      install-id: '9573416740669858'
+      install-id: '9430068375191189'
       rom-version: V433IR+release-keys
-      device-brand: Samsung
-      device-id: '8799208778332873'
-      resolution: 2560*1440
-      cdid: af4773d4-ec1b-49bf-a87e-345a195a80c7
-      device-type: GalaxyS23
+      device-brand: vivo
+      device-id: '6436170427332598'
+      resolution: 3200*1440
+      cdid: 00087ae3-206e-417d-b667-19fb0435556f
+      device-type: V2073A
       version-code: '68132'
-      dpi: '560'
+      dpi: '640'
       aid: '1967'
-    user-agent: com.dragon.read.oversea.gp/68132 (Linux; U; Android 13; zh_CN; GalaxyS23;
+    user-agent: com.dragon.read.oversea.gp/68132 (Linux; U; Android 13; zh_CN; V2073A;
       Build/V433IR;tt-ok/3.12.13.4-tiktok)
 spring:
   application:

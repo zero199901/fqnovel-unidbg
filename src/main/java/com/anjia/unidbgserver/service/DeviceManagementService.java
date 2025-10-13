@@ -119,12 +119,35 @@ public class DeviceManagementService {
             try {
                 log.info("开始重启项目");
                 
-                // 这里可以实现重启逻辑
-                // 由于Spring Boot应用重启比较复杂，这里先返回成功
-                // 实际实现可能需要通过外部脚本或Spring Boot Actuator
+                // 方法1: 通过Spring Boot Actuator重启 (如果可用)
+                try {
+                    restartViaActuator();
+                    log.info("通过Actuator重启项目成功");
+                    return true;
+                } catch (Exception e) {
+                    log.warn("Actuator重启失败，尝试其他方式: {}", e.getMessage());
+                }
                 
-                log.info("项目重启成功");
-                return true;
+                // 方法2: 通过外部脚本重启
+                try {
+                    restartViaScript();
+                    log.info("通过脚本重启项目成功");
+                    return true;
+                } catch (Exception e) {
+                    log.warn("脚本重启失败，尝试其他方式: {}", e.getMessage());
+                }
+                
+                // 方法3: 通过JVM退出重启 (最后手段)
+                try {
+                    restartViaJvmExit();
+                    log.info("通过JVM退出重启项目成功");
+                    return true;
+                } catch (Exception e) {
+                    log.error("JVM退出重启失败: {}", e.getMessage());
+                }
+                
+                log.warn("所有重启方式都失败，但配置已更新，需要手动重启");
+                return false;
                 
             } catch (Exception e) {
                 log.error("项目重启失败", e);
@@ -132,11 +155,227 @@ public class DeviceManagementService {
             }
         }, executorService);
     }
+    
+    /**
+     * 通过Spring Boot Actuator重启
+     */
+    private void restartViaActuator() throws Exception {
+        // 这里可以调用Spring Boot Actuator的restart端点
+        // 需要添加spring-boot-starter-actuator依赖
+        log.debug("尝试通过Actuator重启...");
+        // 暂时跳过，因为可能没有配置Actuator
+        throw new UnsupportedOperationException("Actuator restart not configured");
+    }
+    
+    /**
+     * 通过外部脚本重启
+     */
+    private void restartViaScript() throws Exception {
+        log.debug("尝试通过脚本重启...");
+        
+        // 获取当前JAR文件路径
+        String jarPath = getCurrentJarPath();
+        if (jarPath == null) {
+            throw new RuntimeException("无法获取当前JAR文件路径");
+        }
+        
+        // 创建重启脚本
+        String scriptContent = createRestartScript(jarPath);
+        String scriptPath = saveRestartScript(scriptContent);
+        
+        // 执行重启脚本
+        ProcessBuilder pb = new ProcessBuilder("bash", scriptPath);
+        pb.directory(new File(System.getProperty("user.dir")));
+        pb.redirectErrorStream(true); // 合并错误流和输出流
+        
+        Process process = pb.start();
+        
+        // 读取脚本输出
+        StringBuilder output = new StringBuilder();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                output.append(line).append("\n");
+                log.info("重启脚本输出: {}", line);
+            }
+        }
+        
+        // 等待脚本执行
+        int exitCode = process.waitFor();
+        log.info("重启脚本执行完成，退出码: {}", exitCode);
+        
+        if (exitCode != 0) {
+            log.error("重启脚本执行失败，输出: {}", output.toString());
+            throw new RuntimeException("重启脚本执行失败，退出码: " + exitCode + ", 输出: " + output.toString());
+        }
+        
+        log.info("重启脚本执行成功，项目已重启");
+    }
+    
+    /**
+     * 通过JVM退出重启 (需要外部监控程序)
+     */
+    private void restartViaJvmExit() throws Exception {
+        log.debug("尝试通过JVM退出重启...");
+        
+        // 创建一个延迟任务来退出JVM
+        new Thread(() -> {
+            try {
+                Thread.sleep(2000); // 等待2秒让响应返回
+                log.info("正在退出JVM以触发重启...");
+                System.exit(0);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }).start();
+        
+        log.info("JVM退出任务已启动，将在2秒后退出");
+    }
+    
+    /**
+     * 获取当前JAR文件路径
+     */
+    private String getCurrentJarPath() {
+        try {
+            // 方法1: 通过系统属性获取
+            String jarPath = System.getProperty("java.class.path");
+            if (jarPath != null && jarPath.endsWith(".jar")) {
+                return jarPath;
+            }
+            
+            // 方法2: 通过当前类路径获取
+            String classPath = this.getClass().getProtectionDomain()
+                .getCodeSource().getLocation().getPath();
+            if (classPath.endsWith(".jar")) {
+                return classPath;
+            }
+            
+            // 方法3: 查找target目录下的JAR文件
+            String userDir = System.getProperty("user.dir");
+            File targetDir = new File(userDir, "target");
+            if (targetDir.exists()) {
+                File[] jarFiles = targetDir.listFiles((dir, name) -> 
+                    name.endsWith(".jar") && !name.endsWith("-sources.jar"));
+                if (jarFiles != null && jarFiles.length > 0) {
+                    return jarFiles[0].getAbsolutePath();
+                }
+            }
+            
+            return null;
+        } catch (Exception e) {
+            log.error("获取JAR文件路径失败", e);
+            return null;
+        }
+    }
+    
+    /**
+     * 创建重启脚本
+     */
+    private String createRestartScript(String jarPath) {
+        return String.format("#!/bin/bash\n" +
+            "set -e  # 遇到错误立即退出\n" +
+            "echo \"[$(date)] 正在重启项目...\"\n" +
+            "\n" +
+            "# 停止现有的Java进程\n" +
+            "echo \"[$(date)] 停止现有进程...\"\n" +
+            "pkill -f \"unidbg-boot-server\" || echo \"没有找到现有进程\"\n" +
+            "sleep 3\n" +
+            "\n" +
+            "# 确保端口9999被释放\n" +
+            "echo \"[$(date)] 检查端口9999...\"\n" +
+            "lsof -ti:9999 | xargs kill -9 2>/dev/null || echo \"端口9999已释放\"\n" +
+            "sleep 2\n" +
+            "\n" +
+            "# 检查JAR文件是否存在\n" +
+            "if [ ! -f \"%s\" ]; then\n" +
+            "    echo \"[$(date)] 错误: JAR文件不存在: %s\"\n" +
+            "    exit 1\n" +
+            "fi\n" +
+            "\n" +
+            "# 启动新的JAR文件\n" +
+            "echo \"[$(date)] 启动JAR文件: %s\"\n" +
+            "cd \"%s\"\n" +
+            "nohup java -jar \"%s\" > target/spring-boot.log 2>&1 &\n" +
+            "JAVA_PID=$!\n" +
+            "echo \"[$(date)] 新进程PID: $JAVA_PID\"\n" +
+            "\n" +
+            "# 等待进程启动\n" +
+            "echo \"[$(date)] 等待进程启动...\"\n" +
+            "sleep 5\n" +
+            "\n" +
+            "# 检查进程是否还在运行\n" +
+            "if ps -p $JAVA_PID > /dev/null; then\n" +
+            "    echo \"[$(date)] 项目重启成功，PID: $JAVA_PID\"\n" +
+            "else\n" +
+            "    echo \"[$(date)] 错误: 进程启动失败\"\n" +
+            "    echo \"[$(date)] 检查日志: target/spring-boot.log\"\n" +
+            "    tail -20 target/spring-boot.log\n" +
+            "    exit 1\n" +
+            "fi\n", 
+            jarPath, jarPath, jarPath, System.getProperty("user.dir"), jarPath);
+    }
+    
+    /**
+     * 保存重启脚本
+     */
+    private String saveRestartScript(String scriptContent) throws IOException {
+        String scriptPath = System.getProperty("user.dir") + "/restart.sh";
+        try (FileWriter writer = new FileWriter(scriptPath)) {
+            writer.write(scriptContent);
+        }
+        
+        // 设置脚本执行权限
+        File scriptFile = new File(scriptPath);
+        scriptFile.setExecutable(true);
+        
+        return scriptPath;
+    }
 
     /**
      * 注册设备并自动更新配置和重启项目
      */
     public CompletableFuture<DeviceManagementResult> registerDeviceAndRestart(DeviceRegisterRequest request) {
+        // 如果未提供任何参数，则走与 tools/batch_device_register_xml.py 一致的随机注册流程
+        boolean noExplicitParams = request == null || (
+            request.getDeviceBrand() == null &&
+            request.getDeviceType() == null &&
+            request.getUseRealAlgorithm() == null &&
+            request.getUseRealBrand() == null &&
+            request.getAutoUpdateConfig() == null &&
+            request.getAutoRestart() == null
+        );
+
+        if (noExplicitParams) {
+            return CompletableFuture.supplyAsync(() -> {
+                try {
+                    log.info("未提供设备参数，使用脚本随机注册设备并同步配置");
+                    // 1) 运行脚本生成设备
+                    Path latestYaml = runPythonBatchRegisterAndGetLatestYaml();
+                    if (latestYaml == null) {
+                        return DeviceManagementResult.error("运行设备注册脚本失败或未生成配置");
+                    }
+
+                    // 2) 从 YAML 解析设备信息
+                    DeviceInfo deviceInfo = parseDeviceInfoFromIndividualYaml(latestYaml);
+                    if (deviceInfo == null) {
+                        return DeviceManagementResult.error("解析设备配置失败: " + latestYaml);
+                    }
+
+                    // 3) 更新 application.yml
+                    boolean configUpdated = updateDeviceConfig(deviceInfo).get();
+                    if (!configUpdated) {
+                        log.warn("脚本设备配置写入 application.yml 失败，请检查配置文件路径");
+                    }
+
+                    // 不在此处重启，交由外部脚本处理
+                    return DeviceManagementResult.success("设备注册成功，已更新配置。请执行外部重启脚本。", deviceInfo);
+                } catch (Exception e) {
+                    log.error("脚本方式注册并重启失败", e);
+                    return DeviceManagementResult.error("脚本方式注册失败: " + e.getMessage());
+                }
+            }, executorService);
+        }
+
         return registerDevice(request)
             .thenCompose(registerResponse -> {
                 if (!registerResponse.getSuccess()) {
@@ -153,26 +392,112 @@ public class DeviceManagementService {
                 return updateDeviceConfig(deviceInfo)
                     .thenCompose(configSuccess -> {
                         if (!configSuccess) {
-                            log.error("设备配置更新失败，但继续执行重启流程");
-                            // 即使配置更新失败，也继续执行重启，因为重启后会自动重新加载配置
+                            log.error("设备配置更新失败");
+                            return CompletableFuture.completedFuture(
+                                DeviceManagementResult.error("设备注册成功但更新配置失败")
+                            );
                         } else {
                             log.info("设备配置更新成功");
                         }
-                        
-                        // 重启项目
-                        return restartProject()
-                            .thenApply(restartSuccess -> {
-                                if (restartSuccess) {
-                                    log.info("项目重启成功，设备注册流程完成");
-                                    return DeviceManagementResult.success(
-                                        "设备注册成功，项目已重启", deviceInfo);
-                                } else {
-                                    log.error("项目重启失败");
-                                    return DeviceManagementResult.error("项目重启失败，但设备注册成功");
-                                }
-                            });
+
+                        // 不在此处重启，交由外部脚本处理
+                        return CompletableFuture.completedFuture(
+                            DeviceManagementResult.success("设备注册成功，已更新配置。请执行外部重启脚本。", deviceInfo)
+                        );
                     });
             });
+    }
+
+    /**
+     * 调用 tools/batch_device_register_xml.py 并返回最新 individual YAML 路径
+     */
+    private Path runPythonBatchRegisterAndGetLatestYaml() {
+        try {
+            String userDir = System.getProperty("user.dir");
+            File projectRoot = new File(userDir);
+            File script = new File(projectRoot, "tools/batch_device_register_xml.py");
+            if (!script.exists()) {
+                log.error("设备注册脚本不存在: {}", script.getAbsolutePath());
+                return null;
+            }
+
+            ProcessBuilder pb = new ProcessBuilder("python3", script.getAbsolutePath());
+            pb.directory(projectRoot);
+            pb.redirectErrorStream(true);
+            Process p = pb.start();
+
+            try (BufferedReader br = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
+                String line;
+                while ((line = br.readLine()) != null) {
+                    log.info("设备注册脚本输出: {}", line);
+                }
+            }
+
+            int code = p.waitFor();
+            if (code != 0) {
+                log.error("设备注册脚本退出码非0: {}", code);
+                return null;
+            }
+
+            // 定位 results/individual 下最新的 yaml
+            Path individualDir = Paths.get(userDir, "results", "individual");
+            if (!Files.exists(individualDir)) {
+                log.error("设备配置目录不存在: {}", individualDir);
+                return null;
+            }
+            try {
+                return Files.list(individualDir)
+                    .filter(p2 -> p2.getFileName().toString().endsWith(".yaml"))
+                    .max(Comparator.comparingLong(p2 -> p2.toFile().lastModified()))
+                    .orElse(null);
+            } catch (IOException e) {
+                log.error("遍历设备配置目录失败", e);
+                return null;
+            }
+        } catch (Exception e) {
+            log.error("运行设备注册脚本失败", e);
+            return null;
+        }
+    }
+
+    /**
+     * 从 individual YAML 解析 DeviceInfo
+     */
+    @SuppressWarnings("unchecked")
+    private DeviceInfo parseDeviceInfoFromIndividualYaml(Path yamlPath) {
+        try (FileInputStream fis = new FileInputStream(yamlPath.toFile())) {
+            Yaml yaml = new Yaml();
+            Map<String, Object> root = yaml.load(fis);
+            Map<String, Object> fq = (Map<String, Object>) root.get("fq");
+            Map<String, Object> api = fq != null ? (Map<String, Object>) fq.get("api") : null;
+            if (api == null) return null;
+            Map<String, Object> device = (Map<String, Object>) api.get("device");
+            if (device == null) return null;
+
+            String cookie = (String) api.get("cookie");
+            String userAgent = (String) api.get("user-agent");
+
+            return DeviceInfo.builder()
+                .aid((String) device.get("aid"))
+                .cdid((String) device.get("cdid"))
+                .deviceBrand((String) device.get("device-brand"))
+                .deviceId((String) device.get("device-id"))
+                .deviceType((String) device.get("device-type"))
+                .dpi((String) device.get("dpi"))
+                .hostAbi((String) device.get("host-abi"))
+                .installId((String) device.get("install-id"))
+                .resolution((String) device.get("resolution"))
+                .romVersion((String) device.get("rom-version"))
+                .updateVersionCode((String) device.get("update-version-code"))
+                .versionCode((String) device.get("version-code"))
+                .versionName((String) device.get("version-name"))
+                .cookie(cookie)
+                .userAgent(userAgent)
+                .build();
+        } catch (Exception e) {
+            log.error("解析 individual YAML 失败: {}", yamlPath, e);
+            return null;
+        }
     }
 
     /**
