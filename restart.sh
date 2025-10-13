@@ -2,14 +2,28 @@
 set -e  # 遇到错误立即退出
 echo "[$(date)] 正在重启项目..."
 
+# 第一步：请求注册接口（无参，生成随机真实设备并写入配置）
+echo "[$(date)] 调用注册接口，写入新设备配置..."
+curl -sf -X POST 'http://127.0.0.1:9999/api/device/register-and-restart' \
+  -H 'Content-Type: application/json' \
+  -d '{}' > /dev/null
+echo "[$(date)] 注册接口调用成功，准备重启进程..."
+
 # 停止现有的Java进程
 echo "[$(date)] 停止现有进程..."
 pkill -f "unidbg-boot-server" || echo "没有找到现有进程"
 sleep 3
 
 # 确保端口9999被释放
-echo "[$(date)] 检查端口9999..."
-lsof -ti:9999 | xargs kill -9 2>/dev/null || echo "端口9999已释放"
+echo "[$(date)] 检查端口9999(仅结束Java监听者)..."
+# 只结束占用9999端口的Java进程，避免误杀 Reqable 等其他软件
+JAVA_PIDS=$(lsof -nP -iTCP:9999 -sTCP:LISTEN 2>/dev/null | awk '/java/ {print $2}' | sort -u)
+if [ -n "$JAVA_PIDS" ]; then
+  echo "[$(date)] 结束占用9999端口的Java进程: $JAVA_PIDS"
+  echo "$JAVA_PIDS" | xargs kill -9 2>/dev/null || true
+else
+  echo "[$(date)] 端口9999无Java监听者"
+fi
 sleep 2
 
 # 检查JAR文件是否存在
