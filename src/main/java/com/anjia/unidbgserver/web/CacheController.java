@@ -76,6 +76,20 @@ public class CacheController {
             return ResponseEntity.status(500).body(Collections.singletonMap("error", e.getMessage()));
         }
     }
+
+    @GetMapping("/delete")
+    public ResponseEntity<?> deleteKey(@RequestParam String key) {
+        try {
+            Boolean deleted = stringRedisTemplate.delete(key);
+            Map<String, Object> resp = new HashMap<>();
+            resp.put("key", key);
+            resp.put("deleted", deleted);
+            return ResponseEntity.ok(resp);
+        } catch (Exception e) {
+            log.error("Delete key failed", e);
+            return ResponseEntity.status(500).body(Collections.singletonMap("error", e.getMessage()));
+        }
+    }
 }
 
 

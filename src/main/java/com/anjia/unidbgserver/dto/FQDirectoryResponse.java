@@ -48,6 +48,12 @@ public class FQDirectoryResponse {
     @JsonProperty("book_info")
     private FQNovelBookInfoResp bookInfo;
 
+    /**
+     * 连载数量
+     */
+    @JsonProperty("serial_count")
+    private String serialCount;
+
     @Data
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class CatalogItem {

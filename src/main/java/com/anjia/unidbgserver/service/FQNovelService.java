@@ -308,19 +308,52 @@ public class FQNovelService {
                     bookInfo.setStatus(0);
                 }
 
-                // 章节总数
-                if (bookInfoResp.getContentChapterNumber() != null) {
+                // 章节总数 - 优先使用目录接口的serial_count字段获取真实章节数
+                log.info("调试信息 - bookId: {}, directoryData.serialCount: {}, bookInfoResp.serialCount: {}, directoryData.catalogData.size: {}", 
+                    bookId, directoryData.getSerialCount(), bookInfoResp.getSerialCount(),
+                    directoryData.getCatalogData() != null ? directoryData.getCatalogData().size() : "null");
+                
+                // 优先从bookInfo中获取serialCount
+                if (bookInfoResp.getSerialCount() != null) {
                     try {
-                        bookInfo.setTotalChapters(Integer.parseInt(bookInfoResp.getContentChapterNumber()));
+                        bookInfo.setTotalChapters(Integer.parseInt(bookInfoResp.getSerialCount()));
+                        log.info("使用bookInfo.serialCount获取章节总数 - bookId: {}, 章节数: {}", bookId, bookInfoResp.getSerialCount());
                     } catch (NumberFormatException e) {
-                        // 如果无法解析，从目录数据获取
+                        log.error("解析bookInfo.serialCount失败 - bookId: {}, serialCount: {}", bookId, bookInfoResp.getSerialCount());
+                        // 如果解析失败，尝试从目录数据获取
                         List<FQDirectoryResponse.CatalogItem> catalogData = directoryData.getCatalogData();
-                        bookInfo.setTotalChapters(catalogData != null ? catalogData.size() : 0);
+                        if (catalogData != null && !catalogData.isEmpty()) {
+                            bookInfo.setTotalChapters(catalogData.size());
+                            log.info("从目录数据获取章节总数 - bookId: {}, 章节数: {}", bookId, catalogData.size());
+                        } else {
+                            bookInfo.setTotalChapters(0);
+                        }
+                    }
+                } else if (directoryData.getSerialCount() != null) {
+                    try {
+                        bookInfo.setTotalChapters(Integer.parseInt(directoryData.getSerialCount()));
+                        log.info("使用目录接口serial_count获取章节总数 - bookId: {}, 章节数: {}", bookId, directoryData.getSerialCount());
+                    } catch (NumberFormatException e) {
+                        log.error("解析目录接口serial_count失败 - bookId: {}, serialCount: {}", bookId, directoryData.getSerialCount());
+                        // 如果解析失败，尝试从目录数据获取
+                        List<FQDirectoryResponse.CatalogItem> catalogData = directoryData.getCatalogData();
+                        if (catalogData != null && !catalogData.isEmpty()) {
+                            bookInfo.setTotalChapters(catalogData.size());
+                            log.info("从目录数据获取章节总数 - bookId: {}, 章节数: {}", bookId, catalogData.size());
+                        } else {
+                            bookInfo.setTotalChapters(0);
+                        }
                     }
                 } else {
-                    // 从目录数据获取章节总数
+                    // 如果两个serial_count都为空，尝试从目录数据获取
                     List<FQDirectoryResponse.CatalogItem> catalogData = directoryData.getCatalogData();
-                    bookInfo.setTotalChapters(catalogData != null ? catalogData.size() : 0);
+                    if (catalogData != null && !catalogData.isEmpty()) {
+                        bookInfo.setTotalChapters(catalogData.size());
+                        log.info("从目录数据获取章节总数 - bookId: {}, 章节数: {}", bookId, catalogData.size());
+                    } else {
+                        bookInfo.setTotalChapters(0);
+                        log.warn("无法获取章节总数 - bookId: {}", bookId);
+                    }
                 }
 
                 return FQNovelResponse.success(bookInfo);
@@ -578,7 +611,18 @@ public class FQNovelService {
                 bookInfo.setAuthor(novelData.getAuthor());
                 bookInfo.setCoverUrl(novelData.getThumbUrl());
                 bookInfo.setStatus(novelData.getStatus());
-                bookInfo.setTotalChapters(novelData.getWordNumber());
+                // 使用content_chapter_number字段获取章节数，而不是wordNumber（字数）
+                String contentChapterNumber = novelData.getContentChapterNumber();
+                if (contentChapterNumber != null && !contentChapterNumber.isEmpty()) {
+                    try {
+                        bookInfo.setTotalChapters(Integer.parseInt(contentChapterNumber));
+                    } catch (NumberFormatException e) {
+                        log.warn("解析章节数失败 - contentChapterNumber: {}", contentChapterNumber);
+                        bookInfo.setTotalChapters(0);
+                    }
+                } else {
+                    bookInfo.setTotalChapters(0);
+                }
                 response.setBookInfo(bookInfo);
 
                 // 处理每个章节

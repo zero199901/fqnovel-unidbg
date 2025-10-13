@@ -486,6 +486,11 @@ public class FQSearchService {
                 directoryResponse.setFieldCacheStatus(cacheStatus);
             }
 
+            // 解析连载数量
+            if (dataNode.has("serial_count")) {
+                directoryResponse.setSerialCount(dataNode.get("serial_count").asText());
+            }
+
         }
 
         return directoryResponse;
