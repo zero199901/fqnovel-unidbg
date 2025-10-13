@@ -46,6 +46,27 @@ public class FullBookDownloadController {
     }
 
     /**
+     * 全本下载（GET 简化版，支持默认参数）
+     * 示例：GET /api/fullbook/download?bookId=1629221175143432
+     */
+    @GetMapping("/download")
+    public Flux<FullBookDownloadResponse> downloadFullBookGet(
+            @RequestParam("bookId") String bookId,
+            @RequestParam(value = "batchSize", required = false, defaultValue = "30") int batchSize,
+            @RequestParam(value = "maxChapters", required = false) Integer maxChapters,
+            @RequestParam(value = "saveToRedis", required = false, defaultValue = "true") boolean saveToRedis
+    ) {
+        FullBookDownloadRequest request = FullBookDownloadRequest.builder()
+            .bookId(bookId)
+            .batchSize(batchSize)
+            .maxChapters(maxChapters)
+            .saveToRedis(saveToRedis)
+            .streamResponse(true)
+            .build();
+        return downloadFullBook(request);
+    }
+
+    /**
      * 全本下载（简化版，使用默认参数）
      * 
      * @param bookId 书籍ID

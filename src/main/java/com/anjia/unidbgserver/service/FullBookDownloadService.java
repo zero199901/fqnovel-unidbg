@@ -64,26 +64,17 @@ public class FullBookDownloadService {
                     } else {
                         log.info("从Redis获取作品信息成功 - bookId: {}", request.getBookId());
                     }
-                    // 使用wordNumber作为总章节数的参考，如果totalChapters为0
-                    int totalChapters = bookInfo.getTotalChapters();
-                    if (totalChapters <= 0 && bookInfo.getWordNumber() != null) {
-                        // 如果totalChapters为0，尝试从wordNumber中提取章节数
-                        try {
-                            String wordNumberStr = bookInfo.getWordNumber();
-                            if (wordNumberStr != null && !wordNumberStr.isEmpty()) {
-                                // 假设wordNumber是章节数，而不是字数
-                                totalChapters = Integer.parseInt(wordNumberStr);
-                                log.info("使用wordNumber作为总章节数 - bookId: {}, totalChapters: {}", request.getBookId(), totalChapters);
-                            }
-                        } catch (NumberFormatException e) {
-                            log.warn("无法解析wordNumber为章节数 - bookId: {}, wordNumber: {}", request.getBookId(), bookInfo.getWordNumber());
-                        }
+                    // 优先以目录真实章节总数为准，避免误把 wordNumber 当作章节数
+                    List<String> allChapterIds = getBookChapterIds(request.getBookId()).get();
+                    if (allChapterIds == null) {
+                        allChapterIds = new ArrayList<>();
                     }
-                    
-                    log.info("书籍信息获取成功 - 书名: {}, 总章节数: {}", bookInfo.getBookName(), totalChapters);
-                    
-                    // 2. 计算实际要下载的章节数
-                    int maxChapters = request.getMaxChapters() > 0 ? request.getMaxChapters() : totalChapters;
+                    int totalChapters = allChapterIds.size();
+                    log.info("书籍信息获取成功 - 书名: {}, 目录章节数: {}", bookInfo.getBookName(), totalChapters);
+
+                    // 2. 计算实际要下载的章节数（maxChapters 允许为 null）
+                    Integer reqMax = request.getMaxChapters();
+                    int maxChapters = (reqMax != null && reqMax > 0) ? reqMax : totalChapters;
                     int actualChapters = Math.min(maxChapters, totalChapters);
                     
                     // 3. 分批下载章节
@@ -103,8 +94,7 @@ public class FullBookDownloadService {
                             
                             log.info("开始下载第 {} 批章节 - 范围: {}-{}", batchIndex + 1, startIndex, endIndex - 1);
                             
-                            // 获取所有章节ID
-                            List<String> allChapterIds = getBookChapterIds(request.getBookId()).get();
+                            // 复用预先获取的章节ID
                             if (allChapterIds.isEmpty()) {
                                 log.warn("第 {} 批章节获取失败：无法获取章节ID列表", batchIndex + 1);
                                 continue;
