@@ -53,7 +53,7 @@ public class FullBookDownloadController {
     public Flux<FullBookDownloadResponse> downloadFullBookGet(
             @RequestParam("bookId") String bookId,
             @RequestParam(value = "batchSize", required = false, defaultValue = "30") int batchSize,
-            @RequestParam(value = "maxChapters", required = false) Integer maxChapters,
+            @RequestParam(value = "maxChapters", required = false, defaultValue = "0") int maxChapters,
             @RequestParam(value = "saveToRedis", required = false, defaultValue = "true") boolean saveToRedis
     ) {
         FullBookDownloadRequest request = FullBookDownloadRequest.builder()

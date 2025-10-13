@@ -32,3 +32,18 @@ build/
 ### VS Code ###
 .vscode/
 /src/test/resources/frida/
+
+# Added by automation
+.DS_Store
+.idea/
+*.iml
+*.log
+/tmp/
+target/
+__pycache__/
+*.pyc
+results/novels/
+results/raw_data/
+results/reports/
+results/configs/
+results/individual/

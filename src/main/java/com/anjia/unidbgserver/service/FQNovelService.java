@@ -49,6 +49,9 @@ public class FQNovelService {
     @Resource
     private FQSearchService fqSearchService;
 
+    @Resource
+    private DeviceManagementService deviceManagementService;
+
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -75,50 +78,127 @@ public class FQNovelService {
      */
     public CompletableFuture<FQNovelResponse<FqIBatchFullResponse>> batchFull(String itemIds, String bookId, boolean download) {
         return CompletableFuture.supplyAsync(() -> {
-            try {
-                FqVariable var = getDefaultFqVariable();
+            int maxAttempts = 2; // 首次 + 失败后自动更换设备重试一次
+            for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+                try {
+                    FqVariable var = getDefaultFqVariable();
 
-                // 使用工具类构建URL和参数
-                String url = fqApiUtils.getBaseUrl() + "/reading/reader/batch_full/v";
-                Map<String, String> params = fqApiUtils.buildBatchFullParams(var, itemIds, bookId, download);
-                String fullUrl = fqApiUtils.buildUrlWithParams(url, params);
+                    // 使用工具类构建URL和参数
+                    String url = fqApiUtils.getBaseUrl() + "/reading/reader/batch_full/v";
+                    Map<String, String> params = fqApiUtils.buildBatchFullParams(var, itemIds, bookId, download);
+                    String fullUrl = fqApiUtils.buildUrlWithParams(url, params);
 
-                // 使用工具类构建请求头
-                Map<String, String> headers = fqApiUtils.buildCommonHeaders();
+                    // 使用工具类构建请求头
+                    Map<String, String> headers = fqApiUtils.buildCommonHeaders();
 
-                // 使用现有的签名服务生成签名
-                Map<String, String> signedHeaders = fqEncryptServiceWorker.generateSignatureHeaders(fullUrl, headers).get();
+                    // 使用现有的签名服务生成签名
+                    Map<String, String> signedHeaders = fqEncryptServiceWorker.generateSignatureHeaders(fullUrl, headers).get();
 
-                // 发起API请求
-                HttpHeaders httpHeaders = new HttpHeaders();
-                signedHeaders.forEach(httpHeaders::set);
-                headers.forEach(httpHeaders::set);
+                    // 发起API请求
+                    HttpHeaders httpHeaders = new HttpHeaders();
+                    signedHeaders.forEach(httpHeaders::set);
+                    headers.forEach(httpHeaders::set);
 
-                HttpEntity<String> entity = new HttpEntity<>(httpHeaders);
-                ResponseEntity<byte[]> response = restTemplate.exchange(fullUrl, HttpMethod.GET, entity, byte[].class);
+                    HttpEntity<String> entity = new HttpEntity<>(httpHeaders);
+                    ResponseEntity<byte[]> response = restTemplate.exchange(fullUrl, HttpMethod.GET, entity, byte[].class);
 
-                // 解压缩 GZIP 响应体
-                String responseBody = "";
-                try (GZIPInputStream gzipInputStream = new GZIPInputStream(new ByteArrayInputStream(response.getBody()))) {
-                    ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-                    byte[] buffer = new byte[1024];
-                    int length;
-                    while ((length = gzipInputStream.read(buffer)) != -1) {
-                        byteArrayOutputStream.write(buffer, 0, length);
+                    // 解压缩 GZIP 响应体
+                    String responseBody = "";
+                    try (GZIPInputStream gzipInputStream = new GZIPInputStream(new ByteArrayInputStream(response.getBody()))) {
+                        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+                        byte[] buffer = new byte[1024];
+                        int length;
+                        while ((length = gzipInputStream.read(buffer)) != -1) {
+                            byteArrayOutputStream.write(buffer, 0, length);
+                        }
+                        responseBody = new String(byteArrayOutputStream.toByteArray(), StandardCharsets.UTF_8);
+                    } catch (Exception e) {
+                        // 可能不是GZIP或响应体为空
+                        byte[] raw = response.getBody();
+                        if (raw != null) {
+                            try {
+                                responseBody = new String(raw, StandardCharsets.UTF_8);
+                            } catch (Exception ignored) {
+                                // ignore
+                            }
+                        }
+                        log.warn("GZIP 解压失败或非GZIP响应，尝试直接读取文本。", e);
+
+                        // 如果是非GZIP且包含非法访问，触发自动重启并重试
+                        String em = e.getMessage() != null ? e.getMessage() : "";
+                        if ((em.contains("Not in GZIP format") || (responseBody != null && responseBody.contains("ILLEGAL_ACCESS"))) && attempt < maxAttempts) {
+                            try {
+                                log.warn("检测到非法访问或非GZIP响应，自动注册设备并重启后重试。attempt={}", attempt);
+                                DeviceRegisterRequest req = DeviceRegisterRequest.builder().build();
+                                deviceManagementService.registerDeviceAndRestart(req).get();
+                            } catch (Exception regEx) {
+                                log.error("自动注册新设备并重启失败", regEx);
+                                return FQNovelResponse.error("批量获取章节内容失败: 非法访问/响应异常");
+                            }
+                            continue;
+                        }
                     }
-                    responseBody = new String(byteArrayOutputStream.toByteArray(), StandardCharsets.UTF_8);
+
+                    if (responseBody == null) {
+                        responseBody = "";
+                    }
+
+                    // 如果响应体为空，视为需要更换设备并重试
+                    if (responseBody.trim().isEmpty()) {
+                        throw new RuntimeException("No content to map due to end-of-input");
+                    }
+
+                    // 解析响应
+                    if (responseBody.contains("\"code\":110") || responseBody.contains("ILLEGAL_ACCESS")) {
+                        if (attempt < maxAttempts) {
+                            log.warn("检测到ILLEGAL_ACCESS，自动注册设备并重启后重试。attempt={}", attempt);
+                            try {
+                                DeviceRegisterRequest req = DeviceRegisterRequest.builder().build();
+                                deviceManagementService.registerDeviceAndRestart(req).get();
+                            } catch (Exception regEx) {
+                                log.error("自动注册新设备并重启失败", regEx);
+                                return FQNovelResponse.error("批量获取章节内容失败: ILLEGAL_ACCESS");
+                            }
+                            continue;
+                        }
+                    }
+                    FqIBatchFullResponse batchResponse = objectMapper.readValue(responseBody, FqIBatchFullResponse.class);
+                    return FQNovelResponse.success(batchResponse);
+
                 } catch (Exception e) {
-                    log.error("GZIP 解压失败，原始响应体: {}", new String(response.getBody(), StandardCharsets.UTF_8), e);
+                    String message = e.getMessage() != null ? e.getMessage() : "";
+                    boolean parseEmpty = message.contains("No content to map due to end-of-input");
+                    boolean gzipErr = message.contains("Not in GZIP format");
+                    if ((gzipErr) && attempt < maxAttempts) {
+                        log.warn("检测到GZIP解析异常，自动注册设备并重启后重试。attempt={}", attempt);
+                        try {
+                            DeviceRegisterRequest req = DeviceRegisterRequest.builder().build();
+                            deviceManagementService.registerDeviceAndRestart(req).get();
+                        } catch (Exception regEx) {
+                            log.error("自动注册新设备并重启失败", regEx);
+                            return FQNovelResponse.error("批量获取章节内容失败: " + message);
+                        }
+                        continue;
+                    }
+                    if (parseEmpty && attempt < maxAttempts) {
+                        log.warn("检测到空响应导致解析失败，尝试自动注册新设备并重试。attempt={}", attempt);
+                        try {
+                            DeviceRegisterRequest req = DeviceRegisterRequest.builder().build();
+                            deviceManagementService.registerDeviceAndRestart(req).get();
+                        } catch (Exception regEx) {
+                            log.error("自动注册新设备失败", regEx);
+                            // 不再重试，直接返回
+                            return FQNovelResponse.error("批量获取章节内容失败: " + message);
+                        }
+                        // 继续下一次循环重试
+                        continue;
+                    }
+
+                    log.error("批量获取章节内容失败 - itemIds: {}", itemIds, e);
+                    return FQNovelResponse.error("批量获取章节内容失败: " + message);
                 }
-
-                // 解析响应
-                FqIBatchFullResponse batchResponse = objectMapper.readValue(responseBody, FqIBatchFullResponse.class);
-                return FQNovelResponse.success(batchResponse);
-
-            } catch (Exception e) {
-                log.error("批量获取章节内容失败 - itemIds: {}", itemIds, e);
-                return FQNovelResponse.error("批量获取章节内容失败: " + e.getMessage());
             }
+            return FQNovelResponse.error("批量获取章节内容失败: 超过最大重试次数");
         });
     }
 
