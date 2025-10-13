@@ -432,31 +432,152 @@ def generate_xml_config(device_info: Dict[str, Any]) -> Dict[str, Any]:
 
 def save_results(results: List[Dict[str, Any]], xml_configs: List[Dict[str, Any]], 
                 timestamp: str) -> tuple[str, str]:
-    """保存结果到文件"""
-    # 确保results目录存在
-    os.makedirs("results", exist_ok=True)
+    """保存结果到文件，按分类放到不同目录"""
+    # 创建分类目录结构
+    base_dir = "results"
+    dirs = {
+        "raw_data": os.path.join(base_dir, "raw_data"),      # 原始注册数据
+        "configs": os.path.join(base_dir, "configs"),        # 配置文件
+        "individual": os.path.join(base_dir, "individual"),  # 单独配置文件
+        "reports": os.path.join(base_dir, "reports")         # 报告文件
+    }
     
-    # 保存全量信息
-    full_results_file = os.path.join("results", f"device_register_full_{timestamp}.json")
+    # 确保所有目录存在
+    for dir_path in dirs.values():
+        os.makedirs(dir_path, exist_ok=True)
+    
+    # 1. 保存原始注册数据到 raw_data 目录
+    full_results_file = os.path.join(dirs["raw_data"], f"device_register_full_{timestamp}.json")
     with open(full_results_file, 'w', encoding='utf-8') as f:
         json.dump(results, f, indent=2, ensure_ascii=False)
     
-    # 保存XML配置格式信息
-    xml_configs_file = os.path.join("results", f"device_register_xml_configs_{timestamp}.yaml")
+    # 2. 保存批量XML配置到 configs 目录
+    xml_configs_file = os.path.join(dirs["configs"], f"device_register_xml_configs_{timestamp}.yaml")
     with open(xml_configs_file, 'w', encoding='utf-8') as f:
         yaml.dump({"devices": xml_configs}, f, default_flow_style=False, allow_unicode=True)
     
-    # 额外保存单独的XML配置文件
+    # 3. 保存单独的XML配置文件到 individual 目录
+    individual_files = []
     for i, config in enumerate(xml_configs):
-        single_xml_file = os.path.join("results", f"device_config_{i+1}_{timestamp}.yaml")
+        # 获取设备信息用于文件命名
+        device_info = config.get("fq", {}).get("api", {}).get("device", {})
+        device_brand = device_info.get("device-brand", "Unknown")
+        device_type = device_info.get("device-type", "Unknown")
+        
+        # 创建更友好的文件名
+        safe_brand = device_brand.replace(" ", "_").replace("/", "_")
+        safe_type = device_type.replace(" ", "_").replace("/", "_")
+        filename = f"device_{i+1:03d}_{safe_brand}_{safe_type}_{timestamp}.yaml"
+        
+        single_xml_file = os.path.join(dirs["individual"], filename)
         with open(single_xml_file, 'w', encoding='utf-8') as f:
             yaml.dump(config, f, default_flow_style=False, allow_unicode=True)
+        individual_files.append(single_xml_file)
     
-    print(f"[INFO] 全量结果已保存到: {full_results_file}")
-    print(f"[INFO] XML配置已保存到: {xml_configs_file}")
-    print(f"[INFO] 已生成 {len(xml_configs)} 个单独的配置文件")
+    # 4. 生成统计报告到 reports 目录
+    report_file = os.path.join(dirs["reports"], f"device_register_report_{timestamp}.md")
+    generate_report(report_file, results, xml_configs, timestamp)
+    
+    # 5. 生成设备信息摘要到 reports 目录
+    summary_file = os.path.join(dirs["reports"], f"device_summary_{timestamp}.yaml")
+    generate_summary(summary_file, xml_configs, timestamp)
+    
+    print(f"[INFO] 文件已按分类保存:")
+    print(f"  📁 原始数据: {dirs['raw_data']}")
+    print(f"    └── {os.path.basename(full_results_file)}")
+    print(f"  📁 配置文件: {dirs['configs']}")
+    print(f"    └── {os.path.basename(xml_configs_file)}")
+    print(f"  📁 单独配置: {dirs['individual']}")
+    print(f"    └── {len(individual_files)} 个设备配置文件")
+    print(f"  📁 报告文件: {dirs['reports']}")
+    print(f"    ├── {os.path.basename(report_file)}")
+    print(f"    └── {os.path.basename(summary_file)}")
     
     return full_results_file, xml_configs_file
+
+def generate_report(report_file: str, results: List[Dict[str, Any]], 
+                   xml_configs: List[Dict[str, Any]], timestamp: str):
+    """生成设备注册报告"""
+    successful = sum(1 for r in results if r.get("response", {}).get("success"))
+    failed = len(results) - successful
+    
+    # 统计设备品牌分布
+    brand_stats = {}
+    for config in xml_configs:
+        device_info = config.get("fq", {}).get("api", {}).get("device", {})
+        brand = device_info.get("device-brand", "Unknown")
+        brand_stats[brand] = brand_stats.get(brand, 0) + 1
+    
+    # 统计Android版本分布
+    android_stats = {}
+    for config in xml_configs:
+        device_info = config.get("fq", {}).get("api", {}).get("device", {})
+        # 从user-agent中提取Android版本
+        user_agent = config.get("fq", {}).get("api", {}).get("user-agent", "")
+        if "Android" in user_agent:
+            try:
+                android_version = user_agent.split("Android ")[1].split(";")[0]
+                android_stats[android_version] = android_stats.get(android_version, 0) + 1
+            except:
+                android_stats["Unknown"] = android_stats.get("Unknown", 0) + 1
+    
+    with open(report_file, 'w', encoding='utf-8') as f:
+        f.write(f"# 设备注册报告\n\n")
+        f.write(f"**生成时间**: {timestamp}\n\n")
+        
+        f.write(f"## 注册统计\n\n")
+        f.write(f"- **总设备数**: {len(results)}\n")
+        f.write(f"- **成功注册**: {successful}\n")
+        f.write(f"- **注册失败**: {failed}\n")
+        f.write(f"- **成功率**: {successful/len(results)*100:.1f}%\n\n")
+        
+        f.write(f"## 设备品牌分布\n\n")
+        for brand, count in sorted(brand_stats.items()):
+            f.write(f"- **{brand}**: {count} 台\n")
+        f.write("\n")
+        
+        f.write(f"## Android版本分布\n\n")
+        for version, count in sorted(android_stats.items()):
+            f.write(f"- **Android {version}**: {count} 台\n")
+        f.write("\n")
+        
+        f.write(f"## 设备详情\n\n")
+        for i, config in enumerate(xml_configs, 1):
+            device_info = config.get("fq", {}).get("api", {}).get("device", {})
+            f.write(f"### 设备 {i}\n")
+            f.write(f"- **品牌**: {device_info.get('device-brand', 'Unknown')}\n")
+            f.write(f"- **型号**: {device_info.get('device-type', 'Unknown')}\n")
+            f.write(f"- **设备ID**: {device_info.get('device-id', 'Unknown')}\n")
+            f.write(f"- **安装ID**: {device_info.get('install-id', 'Unknown')}\n")
+            f.write(f"- **分辨率**: {device_info.get('resolution', 'Unknown')}\n")
+            f.write(f"- **DPI**: {device_info.get('dpi', 'Unknown')}\n")
+            f.write(f"- **ROM版本**: {device_info.get('rom-version', 'Unknown')}\n\n")
+
+def generate_summary(summary_file: str, xml_configs: List[Dict[str, Any]], timestamp: str):
+    """生成设备信息摘要"""
+    summary = {
+        "timestamp": timestamp,
+        "total_devices": len(xml_configs),
+        "devices": []
+    }
+    
+    for i, config in enumerate(xml_configs, 1):
+        device_info = config.get("fq", {}).get("api", {}).get("device", {})
+        device_summary = {
+            "index": i,
+            "brand": device_info.get("device-brand", "Unknown"),
+            "model": device_info.get("device-type", "Unknown"),
+            "device_id": device_info.get("device-id", "Unknown"),
+            "install_id": device_info.get("install-id", "Unknown"),
+            "resolution": device_info.get("resolution", "Unknown"),
+            "dpi": device_info.get("dpi", "Unknown"),
+            "rom_version": device_info.get("rom-version", "Unknown"),
+            "cdid": device_info.get("cdid", "Unknown")
+        }
+        summary["devices"].append(device_summary)
+    
+    with open(summary_file, 'w', encoding='utf-8') as f:
+        yaml.dump(summary, f, default_flow_style=False, allow_unicode=True)
 
 def batch_register_devices(count: int, use_real_algorithm: bool = True, 
                           use_real_brand: bool = True) -> tuple[List[Dict], List[Dict]]:
@@ -511,14 +632,11 @@ def main():
     print("批量设备注册工具 (XML配置格式)")
     print("=" * 60)
     
-    # 询问用户配置
-    try:
-        count = int(input("请输入要注册的设备数量 (默认5): ") or "5")
-    except ValueError:
-        count = 5
+    # 非交互式模式，直接使用默认值
+    count = 1  # 只生成一个设备用于测试
     
     if count <= 0:
-        count = 5
+        count = 1
     
     # 固定使用真实算法和真实品牌
     use_real_algorithm = True

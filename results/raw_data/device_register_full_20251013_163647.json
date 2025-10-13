@@ -1,0 +1,156 @@
+[
+  {
+    "timestamp": "2025-10-13T08:36:47.177281Z",
+    "request": {
+      "url": "https://log5-applog.fqnovel.com/service/2/device_register/?aid=1967&version_code=68132&channel=googleplay&package=com.dragon.read.oversea.gp&_rticket=1760344607020&use_store_region_cookie=1&okhttp_version=4.2.137.76-fanqie",
+      "headers": {
+        "User-Agent": "com.dragon.read.oversea.gp/68132 (Linux; U; Android 12; zh_CN; K10; Build/V417IR;tt-ok/3.12.13.4-tiktok)",
+        "Accept": "application/json",
+        "Accept-Encoding": "gzip",
+        "Content-Type": "application/json",
+        "log-encode-type": "gzip",
+        "x-ss-req-ticket": "1760344607020",
+        "x-vc-bdturing-sdk-version": "3.7.2.cn",
+        "Cookie": "store-region=cn-zj; store-region-src=did; install_id=1939632438542543"
+      },
+      "params": {
+        "aid": "1967",
+        "version_code": "68132",
+        "channel": "googleplay",
+        "package": "com.dragon.read.oversea.gp",
+        "_rticket": "1760344607020",
+        "use_store_region_cookie": "1",
+        "okhttp_version": "4.2.137.76-fanqie"
+      },
+      "payload": {
+        "magic_tag": "ss_app_log",
+        "header": {
+          "display_name": "番茄小说",
+          "aid": 1967,
+          "channel": "googleplay",
+          "package": "com.dragon.read.oversea.gp",
+          "app_version": "6.8.1.32",
+          "version_code": 68132,
+          "update_version_code": 68132,
+          "manifest_version_code": 68132,
+          "app_version_minor": "6.8.1.32",
+          "sdk_version": "3.7.0-rc.25-fanqie-xiaoshuo-opt",
+          "sdk_target_version": 29,
+          "git_hash": "5b6a0d3",
+          "sdk_flavor": "china",
+          "guest_mode": 0,
+          "is_system_app": 0,
+          "pre_installed_channel": "",
+          "not_request_sender": 0,
+          "os": "Android",
+          "os_version": "12",
+          "os_api": 32,
+          "device_model": "K10",
+          "device_brand": "OPPO",
+          "device_manufacturer": "OPPO",
+          "cpu_abi": "arm64-v8a",
+          "release_build": "V417IR_20171120",
+          "density_dpi": 440,
+          "display_density": "xxhdpi",
+          "resolution": "2340x1080",
+          "language": "zh",
+          "timezone": 8,
+          "access": "wifi",
+          "rom": "1416",
+          "rom_version": "V417IR release-keys",
+          "cdid": "8ba806b4-f458-42f1-ab56-47fe8711f583",
+          "sig_hash": "9d3dd2011707e9c1527c6208a596472a",
+          "openudid": "920c7c8ddf11d42c4edb724470cd0328c4064237",
+          "clientudid": "20901137-11c3-4798-93e4-60eb91cbf8c3",
+          "ipv6_list": [
+            {
+              "type": "client_anpi",
+              "value": "A3EA:E8B1:FDA5:27D7:2493:73DA:0522:15B9"
+            }
+          ],
+          "region": "CN",
+          "tz_name": "Asia/Shanghai",
+          "tz_offset": 28800,
+          "sim_serial_number": [],
+          "oaid_may_support": false,
+          "req_id": "0da4f50e-a806-496e-958c-366f3800e778",
+          "device_platform": "android",
+          "custom": {
+            "host_bit": 64,
+            "account_region": "cn",
+            "dragon_device_type": "phone"
+          },
+          "apk_first_install_time": 1735533580577
+        },
+        "_gen_time": 1760344607020
+      },
+      "device_info": {
+        "android_id": "118b8c4640af7c46",
+        "device_brand": "OPPO",
+        "device_manufacturer": "OPPO",
+        "device_model": "K10",
+        "device_type": "K10",
+        "os_version": "12",
+        "os_api": 32,
+        "release_build": "V417IR_20171120",
+        "rom_version": "V417IR+release-keys",
+        "resolution": "2340*1080",
+        "density_dpi": 440,
+        "display_density": "xxhdpi",
+        "cpu_abi": "arm64-v8a",
+        "host_abi": "arm64-v8a",
+        "rom": "1416",
+        "cdid": "8ba806b4-f458-42f1-ab56-47fe8711f583",
+        "sig_hash": "9d3dd2011707e9c1527c6208a596472a",
+        "openudid": "920c7c8ddf11d42c4edb724470cd0328c4064237",
+        "clientudid": "20901137-11c3-4798-93e4-60eb91cbf8c3",
+        "ipv6_address": "A3EA:E8B1:FDA5:27D7:2493:73DA:0522:15B9",
+        "device_id": "3520012583484747",
+        "install_id": "3520012583701835",
+        "req_id": "0da4f50e-a806-496e-958c-366f3800e778",
+        "apk_first_install_time": 1735533580577,
+        "_gen_time": 1760344607020,
+        "_rticket": 1760344607020,
+        "algorithm_info": {
+          "use_real_openudid_algorithm": true,
+          "use_real_brand_model": true,
+          "openudid_generation": "real"
+        }
+      }
+    },
+    "response": {
+      "status_code": 200,
+      "headers": {
+        "Server": "volc-dcdn",
+        "Content-Type": "application/json",
+        "Transfer-Encoding": "chunked",
+        "Connection": "keep-alive",
+        "Date": "Mon, 13 Oct 2025 08:36:47 GMT",
+        "Vary": "Accept-Encoding",
+        "Set-Cookie": "store-region=cn-bj; Path=/; Domain=fqnovel.com; Max-Age=31536000; HttpOnly, store-region-src=did; Path=/; Domain=fqnovel.com; Max-Age=31536000; HttpOnly, install_id=3520012583701835; Path=/; Domain=fqnovel.com; Max-Age=157680000, ttreq=1$299a1d05d247bbb7ec1ed20bd4868c86c523a917; Path=/; Domain=fqnovel.com; Max-Age=63071999",
+        "X-Tt-Logid": "20251013163647CE70C4F89F7C980F4D17",
+        "tt-idc-switch": "10000@20250924002058",
+        "server-timing": "inner; dur=104, cdn-cache;desc=MISS, origin;dur=109, edge;dur=0",
+        "x-tt-trace-host": "01007eefeb3bc4d02ce5a6ce535e743e3cded95459bb0db4cb836362f4c4585358c11324da6ca9762f780f055c2afd05584c7f006825a1772737b54e1bd596c616348ad45732406381f1a4b9ac167f974bcdd8c9843b06f5bc2f7dde48dd7e31833b50a702fde0d9e5349c90176dbb4872",
+        "x-tt-trace-tag": "id=5",
+        "x-tt-trace-id": "00-dcb70b1c0301088252417567ef0c07af-dcb70b1c03010882-01",
+        "Content-Encoding": "gzip",
+        "via": "n220-181-136-245.bjchaoyangqu-ct02-container.Creative",
+        "x-request-ip": "114.64.251.50",
+        "x-dsa-trace-id": "1760344607d6ca0518b3343a2b9b481bf227ef6b3b",
+        "X-Dsa-Origin-Status": "200"
+      },
+      "content": "{\"server_time\":1760344607,\"device_id\":3520012583484747,\"install_id\":3520012583701835,\"new_user\":1,\"device_id_str\":\"3520012583484747\",\"install_id_str\":\"3520012583701835\",\"device_token\":\"AAA2LHXT7NJ52PM2QLRNV4DZ6ODAS6J6TM2TX7NHEFKDQSXVDX2YS7FLNOKBDZX2YMJTDIBWHHEES23QUZP2VV5K4TNJ555M4GLPIBIHO2SECMGEWZVWI4ZMVREDI\"}",
+      "success": true,
+      "json": {
+        "server_time": 1760344607,
+        "device_id": 3520012583484747,
+        "install_id": 3520012583701835,
+        "new_user": 1,
+        "device_id_str": "3520012583484747",
+        "install_id_str": "3520012583701835",
+        "device_token": "AAA2LHXT7NJ52PM2QLRNV4DZ6ODAS6J6TM2TX7NHEFKDQSXVDX2YS7FLNOKBDZX2YMJTDIBWHHEES23QUZP2VV5K4TNJ555M4GLPIBIHO2SECMGEWZVWI4ZMVREDI"
+      }
+    }
+  }
+]

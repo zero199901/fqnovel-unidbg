@@ -1,0 +1,30 @@
+devices:
+- brand: OnePlus
+  cdid: ed3dec89-d0bc-4f32-ae66-5f7eb5a57e55
+  device_id: '2886693885903290'
+  dpi: '320'
+  index: 1
+  install_id: '2886693885907386'
+  model: OnePlus10
+  resolution: 1600*900
+  rom_version: V451IR+release-keys
+- brand: HUAWEI
+  cdid: e7393910-fea1-4959-a695-bab25e0852d0
+  device_id: '1479319002321610'
+  dpi: '440'
+  index: 2
+  install_id: '1479319002325706'
+  model: Mate50
+  resolution: 2340*1080
+  rom_version: V451IR+release-keys
+- brand: OnePlus
+  cdid: 6fe6a208-36dc-4301-8000-762ef05b8976
+  device_id: '916369048643994'
+  dpi: '320'
+  index: 3
+  install_id: '916369048648090'
+  model: OnePlus11
+  resolution: 1600*900
+  rom_version: V417IR+release-keys
+timestamp: '20251013_163713'
+total_devices: 3

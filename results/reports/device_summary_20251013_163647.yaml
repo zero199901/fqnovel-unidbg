@@ -1,0 +1,12 @@
+devices:
+- brand: OPPO
+  cdid: 8ba806b4-f458-42f1-ab56-47fe8711f583
+  device_id: '3520012583484747'
+  dpi: '440'
+  index: 1
+  install_id: '3520012583701835'
+  model: K10
+  resolution: 2340*1080
+  rom_version: V417IR+release-keys
+timestamp: '20251013_163647'
+total_devices: 1

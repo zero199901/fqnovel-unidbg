@@ -1,0 +1,20 @@
+fq:
+  api:
+    base-url: https://api5-normal-sinfonlineb.fqnovel.com
+    cookie: store-region=cn-zj; store-region-src=did; install_id=1479319002325706;
+    device:
+      aid: '1967'
+      cdid: e7393910-fea1-4959-a695-bab25e0852d0
+      device-brand: HUAWEI
+      device-id: '1479319002321610'
+      device-type: Mate50
+      dpi: '440'
+      host-abi: arm64-v8a
+      install-id: '1479319002325706'
+      resolution: 2340*1080
+      rom-version: V451IR+release-keys
+      update-version-code: '68132'
+      version-code: '68132'
+      version-name: 6.8.1.32
+    user-agent: com.dragon.read.oversea.gp/68132 (Linux; U; Android 14; zh_CN; Mate50;
+      Build/V451IR;tt-ok/3.12.13.4-tiktok)

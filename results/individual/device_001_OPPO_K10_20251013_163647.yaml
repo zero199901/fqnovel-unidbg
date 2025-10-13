@@ -1,0 +1,20 @@
+fq:
+  api:
+    base-url: https://api5-normal-sinfonlineb.fqnovel.com
+    cookie: store-region=cn-zj; store-region-src=did; install_id=3520012583701835;
+    device:
+      aid: '1967'
+      cdid: 8ba806b4-f458-42f1-ab56-47fe8711f583
+      device-brand: OPPO
+      device-id: '3520012583484747'
+      device-type: K10
+      dpi: '440'
+      host-abi: arm64-v8a
+      install-id: '3520012583701835'
+      resolution: 2340*1080
+      rom-version: V417IR+release-keys
+      update-version-code: '68132'
+      version-code: '68132'
+      version-name: 6.8.1.32
+    user-agent: com.dragon.read.oversea.gp/68132 (Linux; U; Android 12; zh_CN; K10;
+      Build/V417IR;tt-ok/3.12.13.4-tiktok)
