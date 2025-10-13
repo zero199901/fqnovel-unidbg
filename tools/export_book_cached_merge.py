@@ -56,17 +56,32 @@ def normalize_title(n: int, title: str) -> str:
     return re.sub(r'^第\s*'+str(n)+r'\s*章\s*', '', title).strip()
 
 def main():
-    if len(sys.argv) < 3:
-        print('Usage: python3 tools/export_book_cached_merge.py <bookId> <outputPath> [maxChapters]')
+    # CLI:
+    # 1) python3 tools/export_book_cached_merge.py <bookId>
+    #    -> outputs to results/novels/<bookName or bookId>.txt
+    # 2) python3 tools/export_book_cached_merge.py <bookId> <outputPath> [maxChapters]
+    if len(sys.argv) < 2:
+        print('Usage: python3 tools/export_book_cached_merge.py <bookId> [outputPath] [maxChapters]')
         sys.exit(1)
     book_id = sys.argv[1]
-    output_path = sys.argv[2]
-    max_ch = int(sys.argv[3]) if len(sys.argv) >= 4 else None
 
     info = fetch_book_info(book_id)
     book_name = info.get('bookName') or info.get('book_name') or ''
     author = info.get('author') or ''
     abstract = info.get('description') or info.get('abstract') or ''
+
+    # Derive default output path when not provided
+    if len(sys.argv) >= 3 and not sys.argv[2].isdigit():
+        output_path = sys.argv[2]
+        max_ch = int(sys.argv[3]) if len(sys.argv) >= 4 else None
+    else:
+        # sanitize book_name for filename
+        safe_name = (book_name or book_id)
+        # Replace path-unfriendly chars
+        safe_name = re.sub(r'[\\/\n\r\t:*?"<>|]', '_', safe_name)
+        output_dir = 'results/novels'
+        output_path = os.path.join(output_dir, f'{safe_name}.txt')
+        max_ch = int(sys.argv[2]) if len(sys.argv) >= 3 and sys.argv[2].isdigit() else None
 
     ids = fetch_chapter_ids(book_id)
     if not ids:
