@@ -8,6 +8,7 @@ import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.core.env.Environment;
 import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 import java.net.InetAddress;
 import java.util.ArrayList;
@@ -15,6 +16,7 @@ import java.util.List;
 
 @Slf4j
 @EnableAsync(proxyTargetClass = true)
+@EnableScheduling
 @ConfigurationPropertiesScan
 @EnableConfigurationProperties
 @SpringBootApplication(scanBasePackages = {"com.anjia"})

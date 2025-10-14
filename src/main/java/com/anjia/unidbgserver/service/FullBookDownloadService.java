@@ -159,7 +159,20 @@ public class FullBookDownloadService {
                                 fqNovelService.getBatchChapterContent(batchRequest).get();
                             
                             if (batchResponse.getCode() != 0 || batchResponse.getData() == null) {
-                                log.warn("第 {} 批章节下载失败: {}", batchIndex + 1, batchResponse.getMessage());
+                                String errorMessage = batchResponse.getMessage();
+                                log.warn("第 {} 批章节下载失败: {}", batchIndex + 1, errorMessage);
+                                
+                                // 检查是否是关键错误，如果是则跳出循环
+                                if (errorMessage != null && (
+                                    errorMessage.contains("非法访问") || 
+                                    errorMessage.contains("响应格式异常") ||
+                                    errorMessage.contains("请手动更新设备信息"))) {
+                                    log.error("检测到关键错误，停止下载任务: {}", errorMessage);
+                                    sink.error(new RuntimeException("下载任务因关键错误停止: " + errorMessage));
+                                    return;
+                                }
+                                
+                                // 非关键错误，继续下一批
                                 continue;
                             }
                             
@@ -439,5 +452,299 @@ public class FullBookDownloadService {
                 return new ArrayList<>();
             }
         }, executorService);
+    }
+
+    /**
+     * 自动检查并恢复下载
+     */
+    public CompletableFuture<AutoResumeResult> autoResumeDownload(String bookId) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                log.info("开始自动检查下载进度 - bookId: {}", bookId);
+                
+                // 获取当前下载进度
+                Map<String, Object> progress = getDownloadProgress(bookId).get();
+                
+                if (progress.containsKey("error")) {
+                    return AutoResumeResult.error("获取下载进度失败: " + progress.get("error"));
+                }
+                
+                boolean completed = (Boolean) progress.get("completed");
+                int totalChapters = (Integer) progress.get("totalChapters");
+                long downloadedChapters = ((Number) progress.get("downloadedChapters")).longValue();
+                String bookName = (String) progress.get("bookName");
+                
+                log.info("下载进度检查 - 书名: {}, 总章节: {}, 已下载: {}, 完成状态: {}", 
+                    bookName, totalChapters, downloadedChapters, completed);
+                
+                if (completed) {
+                    return AutoResumeResult.success("书籍下载已完成，无需恢复", bookId);
+                }
+                
+                // 如果未完成，自动恢复下载
+                log.info("检测到未完成的下载任务，开始自动恢复 - bookId: {}", bookId);
+                
+                FullBookDownloadRequest request = FullBookDownloadRequest.builder()
+                    .bookId(bookId)
+                    .batchSize(30)
+                    .saveToRedis(true)
+                    .streamResponse(false) // 不流式返回，后台执行
+                    .build();
+                
+                // 异步执行下载，不等待完成
+                downloadFullBook(request)
+                    .doOnNext(response -> {
+                        log.info("自动恢复下载进度更新 - bookId: {}, 消息: {}", bookId, response.getMessage());
+                    })
+                    .doOnError(error -> {
+                        log.error("自动恢复下载失败 - bookId: {}", bookId, error);
+                    })
+                    .subscribe(); // 启动异步下载
+                
+                return AutoResumeResult.success(
+                    String.format("已启动自动恢复下载 - 书名: %s, 进度: %d/%d (%.1f%%)", 
+                        bookName, downloadedChapters, totalChapters, 
+                        (double) downloadedChapters / totalChapters * 100), 
+                    bookId
+                );
+                
+            } catch (Exception e) {
+                log.error("自动恢复下载失败 - bookId: {}", bookId, e);
+                return AutoResumeResult.error("自动恢复下载失败: " + e.getMessage());
+            }
+        }, executorService);
+    }
+
+    /**
+     * 检查所有未完成的任务并自动恢复下载
+     */
+    public CompletableFuture<AutoResumeAllResult> autoResumeAllDownloads() {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                log.info("开始检查所有未完成的下载任务");
+                
+                // 获取所有有下载记录的书籍
+                Set<String> allBookKeys = redisService.getAllBookKeys();
+                List<String> incompleteBooks = new ArrayList<>();
+                List<String> processedBooks = new ArrayList<>();
+                
+                for (String bookKey : allBookKeys) {
+                    try {
+                        // 从key中提取bookId
+                        String bookId = extractBookIdFromKey(bookKey);
+                        if (bookId == null) continue;
+                        
+                        // 检查下载进度
+                        Map<String, Object> progress = getDownloadProgress(bookId).get();
+                        if (progress.containsKey("error")) {
+                            log.warn("获取书籍进度失败，跳过 - bookId: {}, error: {}", bookId, progress.get("error"));
+                            continue;
+                        }
+                        
+                        boolean completed = (Boolean) progress.get("completed");
+                        if (!completed) {
+                            incompleteBooks.add(bookId);
+                        }
+                        
+                    } catch (Exception e) {
+                        log.warn("检查书籍进度时出错，跳过 - bookKey: {}", bookKey, e);
+                    }
+                }
+                
+                log.info("发现 {} 个未完成的下载任务", incompleteBooks.size());
+                
+                // 自动恢复所有未完成的任务
+                for (String bookId : incompleteBooks) {
+                    try {
+                        AutoResumeResult result = autoResumeDownload(bookId).get();
+                        if (result.isSuccess()) {
+                            processedBooks.add(bookId);
+                            log.info("成功启动自动恢复 - bookId: {}", bookId);
+                        } else {
+                            log.warn("自动恢复失败 - bookId: {}, error: {}", bookId, result.getMessage());
+                        }
+                        
+                        // 添加延迟避免请求过快
+                        Thread.sleep(1000);
+                        
+                    } catch (Exception e) {
+                        log.error("处理书籍自动恢复时出错 - bookId: {}", bookId, e);
+                    }
+                }
+                
+                String message = String.format("检查完成，发现 %d 个未完成任务，成功启动 %d 个自动恢复", 
+                    incompleteBooks.size(), processedBooks.size());
+                
+                return AutoResumeAllResult.success(message, processedBooks);
+                
+            } catch (Exception e) {
+                log.error("批量自动恢复下载失败", e);
+                return AutoResumeAllResult.error("批量自动恢复下载失败: " + e.getMessage());
+            }
+        }, executorService);
+    }
+
+    /**
+     * 从Redis key中提取bookId
+     */
+    private String extractBookIdFromKey(String key) {
+        // 处理不同格式的key
+        if (key.startsWith("novel:book:chapters:")) {
+            return key.substring("novel:book:chapters:".length());
+        } else if (key.startsWith("book:") && key.endsWith(":info")) {
+            return key.substring("book:".length(), key.length() - ":info".length());
+        } else if (key.startsWith("book:") && key.endsWith(":chapters")) {
+            return key.substring("book:".length(), key.length() - ":chapters".length());
+        }
+        return null;
+    }
+
+    /**
+     * 自动恢复结果类
+     */
+    public static class AutoResumeResult {
+        private final boolean success;
+        private final String message;
+        private final String bookId;
+
+        private AutoResumeResult(boolean success, String message, String bookId) {
+            this.success = success;
+            this.message = message;
+            this.bookId = bookId;
+        }
+
+        public static AutoResumeResult success(String message, String bookId) {
+            return new AutoResumeResult(true, message, bookId);
+        }
+
+        public static AutoResumeResult error(String message) {
+            return new AutoResumeResult(false, message, null);
+        }
+
+        public boolean isSuccess() { return success; }
+        public String getMessage() { return message; }
+        public String getBookId() { return bookId; }
+    }
+
+    /**
+     * 检查所有书籍的下载状态（不执行恢复，仅检查）
+     */
+    public CompletableFuture<CheckAllStatusResult> checkAllDownloadStatus() {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                log.info("开始检查所有书籍的下载状态");
+                
+                // 获取所有有下载记录的书籍
+                Set<String> allBookKeys = redisService.getAllBookKeys();
+                List<Map<String, Object>> allBooks = new ArrayList<>();
+                List<Map<String, Object>> incompleteBooks = new ArrayList<>();
+                List<Map<String, Object>> completeBooks = new ArrayList<>();
+                
+                for (String bookKey : allBookKeys) {
+                    try {
+                        // 从key中提取bookId
+                        String bookId = extractBookIdFromKey(bookKey);
+                        if (bookId == null) continue;
+                        
+                        // 检查下载进度
+                        Map<String, Object> progress = getDownloadProgress(bookId).get();
+                        if (progress.containsKey("error")) {
+                            log.warn("获取书籍进度失败，跳过 - bookId: {}, error: {}", bookId, progress.get("error"));
+                            continue;
+                        }
+                        
+                        Map<String, Object> bookStatus = new HashMap<>();
+                        bookStatus.put("bookId", bookId);
+                        bookStatus.put("bookName", progress.get("bookName"));
+                        bookStatus.put("totalChapters", progress.get("totalChapters"));
+                        bookStatus.put("downloadedChapters", progress.get("downloadedChapters"));
+                        bookStatus.put("progress", progress.get("progress"));
+                        bookStatus.put("completed", progress.get("completed"));
+                        bookStatus.put("timestamp", progress.get("timestamp"));
+                        
+                        allBooks.add(bookStatus);
+                        
+                        boolean completed = (Boolean) progress.get("completed");
+                        if (completed) {
+                            completeBooks.add(bookStatus);
+                        } else {
+                            incompleteBooks.add(bookStatus);
+                        }
+                        
+                    } catch (Exception e) {
+                        log.warn("检查书籍状态时出错，跳过 - bookKey: {}", bookKey, e);
+                    }
+                }
+                
+                String message = String.format("检查完成，共发现 %d 本书籍，其中 %d 本已完成，%d 本未完成", 
+                    allBooks.size(), completeBooks.size(), incompleteBooks.size());
+                
+                Map<String, Object> summary = new HashMap<>();
+                summary.put("totalBooks", allBooks.size());
+                summary.put("completeBooks", completeBooks.size());
+                summary.put("incompleteBooks", incompleteBooks.size());
+                summary.put("incompleteBookList", incompleteBooks);
+                
+                return CheckAllStatusResult.success(message, summary);
+                
+            } catch (Exception e) {
+                log.error("检查所有书籍状态失败", e);
+                return CheckAllStatusResult.error("检查所有书籍状态失败: " + e.getMessage());
+            }
+        }, executorService);
+    }
+
+    /**
+     * 批量自动恢复结果类
+     */
+    public static class AutoResumeAllResult {
+        private final boolean success;
+        private final String message;
+        private final List<String> processedBooks;
+
+        private AutoResumeAllResult(boolean success, String message, List<String> processedBooks) {
+            this.success = success;
+            this.message = message;
+            this.processedBooks = processedBooks;
+        }
+
+        public static AutoResumeAllResult success(String message, List<String> processedBooks) {
+            return new AutoResumeAllResult(true, message, processedBooks);
+        }
+
+        public static AutoResumeAllResult error(String message) {
+            return new AutoResumeAllResult(false, message, new ArrayList<>());
+        }
+
+        public boolean isSuccess() { return success; }
+        public String getMessage() { return message; }
+        public List<String> getProcessedBooks() { return processedBooks; }
+    }
+
+    /**
+     * 检查所有状态结果类
+     */
+    public static class CheckAllStatusResult {
+        private final boolean success;
+        private final String message;
+        private final Map<String, Object> books;
+
+        private CheckAllStatusResult(boolean success, String message, Map<String, Object> books) {
+            this.success = success;
+            this.message = message;
+            this.books = books;
+        }
+
+        public static CheckAllStatusResult success(String message, Map<String, Object> books) {
+            return new CheckAllStatusResult(true, message, books);
+        }
+
+        public static CheckAllStatusResult error(String message) {
+            return new CheckAllStatusResult(false, message, new HashMap<>());
+        }
+
+        public boolean isSuccess() { return success; }
+        public String getMessage() { return message; }
+        public Map<String, Object> getBooks() { return books; }
     }
 }

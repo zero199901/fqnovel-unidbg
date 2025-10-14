@@ -251,4 +251,38 @@ public class RedisService {
             log.error("删除作品所有数据失败 - bookId: {}", bookId, e);
         }
     }
+
+    /**
+     * 获取所有书籍相关的Redis key
+     */
+    public Set<String> getAllBookKeys() {
+        try {
+            Set<String> allKeys = new java.util.HashSet<>();
+            
+            // 获取所有书籍信息key
+            Set<String> bookInfoKeys = redisTemplate.keys("book:*:info");
+            if (bookInfoKeys != null) {
+                allKeys.addAll(bookInfoKeys);
+            }
+            
+            // 获取所有书籍章节列表key
+            Set<String> bookChaptersKeys = redisTemplate.keys("book:*:chapters");
+            if (bookChaptersKeys != null) {
+                allKeys.addAll(bookChaptersKeys);
+            }
+            
+            // 获取所有novel章节列表key
+            Set<String> novelChaptersKeys = redisTemplate.keys("novel:book:chapters:*");
+            if (novelChaptersKeys != null) {
+                allKeys.addAll(novelChaptersKeys);
+            }
+            
+            log.debug("获取到 {} 个书籍相关的Redis key", allKeys.size());
+            return allKeys;
+            
+        } catch (Exception e) {
+            log.error("获取所有书籍key失败", e);
+            return new java.util.HashSet<>();
+        }
+    }
 }

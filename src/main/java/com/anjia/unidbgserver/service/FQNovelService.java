@@ -124,12 +124,19 @@ public class FQNovelService {
                         }
                         log.warn("GZIP 解压失败或非GZIP响应，尝试直接读取文本。", e);
 
-                        // 如果是非GZIP且包含非法访问，记录警告但不自动重启
+                        // 检查错误类型，如果是关键错误则立即跳出循环
                         String em = e.getMessage() != null ? e.getMessage() : "";
-                        if (em.contains("Not in GZIP format") || (responseBody != null && responseBody.contains("ILLEGAL_ACCESS"))) {
-                            log.warn("检测到非法访问或非GZIP响应，建议手动更新设备信息。attempt={}, error={}", attempt, em);
-                            // 不再自动重启，直接返回错误
-                            return FQNovelResponse.error("批量获取章节内容失败: 非法访问/响应异常，请手动更新设备信息");
+                        
+                        // 检测到"Not in GZIP format"错误，立即返回错误避免无限循环
+                        if (em.contains("Not in GZIP format")) {
+                            log.warn("检测到非GZIP格式响应，立即跳出循环避免无限重试。attempt={}, error={}", attempt, em);
+                            return FQNovelResponse.error("批量获取章节内容失败: 响应格式异常，请手动更新设备信息");
+                        }
+                        
+                        // 检测到"ILLEGAL_ACCESS"错误，立即返回错误
+                        if (responseBody != null && responseBody.contains("ILLEGAL_ACCESS")) {
+                            log.warn("检测到非法访问响应，立即跳出循环。attempt={}, responseBody={}", attempt, responseBody);
+                            return FQNovelResponse.error("批量获取章节内容失败: 非法访问，请手动更新设备信息");
                         }
                     }
 

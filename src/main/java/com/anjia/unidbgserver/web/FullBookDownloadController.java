@@ -3,6 +3,7 @@ package com.anjia.unidbgserver.web;
 import com.anjia.unidbgserver.dto.FQNovelChapterInfo;
 import com.anjia.unidbgserver.dto.FullBookDownloadRequest;
 import com.anjia.unidbgserver.dto.FullBookDownloadResponse;
+import com.anjia.unidbgserver.service.AutoResumeTaskService;
 import com.anjia.unidbgserver.service.FullBookDownloadService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -25,6 +27,9 @@ public class FullBookDownloadController {
 
     @Autowired
     private FullBookDownloadService fullBookDownloadService;
+
+    @Autowired
+    private AutoResumeTaskService autoResumeTaskService;
 
     /**
      * 全本下载（流式返回）
@@ -125,6 +130,103 @@ public class FullBookDownloadController {
                 } else {
                     return ResponseEntity.ok(progress);
                 }
+            });
+    }
+
+    /**
+     * 自动检查并恢复下载
+     * 
+     * @param bookId 书籍ID
+     * @return 恢复下载结果
+     */
+    @PostMapping("/auto-resume/{bookId}")
+    public CompletableFuture<ResponseEntity<Map<String, Object>>> autoResumeDownload(@PathVariable String bookId) {
+        if (log.isDebugEnabled()) {
+            log.debug("自动恢复下载请求 - bookId: {}", bookId);
+        }
+        
+        return fullBookDownloadService.autoResumeDownload(bookId)
+            .thenApply(result -> {
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", result.isSuccess());
+                response.put("message", result.getMessage());
+                response.put("bookId", bookId);
+                response.put("timestamp", System.currentTimeMillis());
+                
+                if (result.isSuccess()) {
+                    return ResponseEntity.ok(response);
+                } else {
+                    return ResponseEntity.badRequest().body(response);
+                }
+            });
+    }
+
+    /**
+     * 检查所有未完成的任务并自动恢复下载
+     * 
+     * @return 批量恢复结果
+     */
+    @PostMapping("/auto-resume-all")
+    public CompletableFuture<ResponseEntity<Map<String, Object>>> autoResumeAllDownloads() {
+        if (log.isDebugEnabled()) {
+            log.debug("批量自动恢复下载请求");
+        }
+        
+        return fullBookDownloadService.autoResumeAllDownloads()
+            .thenApply(result -> {
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", result.isSuccess());
+                response.put("message", result.getMessage());
+                response.put("processedBooks", result.getProcessedBooks());
+                response.put("timestamp", System.currentTimeMillis());
+                
+                return ResponseEntity.ok(response);
+            });
+    }
+
+    /**
+     * 手动触发定时自动恢复任务
+     * 
+     * @return 触发结果
+     */
+    @PostMapping("/trigger-auto-resume")
+    public CompletableFuture<ResponseEntity<Map<String, Object>>> triggerAutoResume() {
+        if (log.isDebugEnabled()) {
+            log.debug("手动触发自动恢复任务请求");
+        }
+        
+        return autoResumeTaskService.triggerAutoResume()
+            .thenApply(result -> {
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", result.isSuccess());
+                response.put("message", result.getMessage());
+                response.put("processedBooks", result.getProcessedBooks());
+                response.put("timestamp", System.currentTimeMillis());
+                
+                return ResponseEntity.ok(response);
+            });
+    }
+
+    /**
+     * 检查所有书籍的下载状态（不执行恢复，仅检查）
+     * 
+     * @return 所有书籍的下载状态
+     */
+    @GetMapping("/check-all-status")
+    public CompletableFuture<ResponseEntity<Map<String, Object>>> checkAllDownloadStatus() {
+        if (log.isDebugEnabled()) {
+            log.debug("检查所有书籍下载状态请求");
+        }
+        
+        return fullBookDownloadService.checkAllDownloadStatus()
+            .thenApply(result -> {
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", result.isSuccess());
+                response.put("message", result.getMessage());
+                response.put("books", result.getBooks());
+                response.put("timestamp", System.currentTimeMillis());
+                
+                return ResponseEntity.ok(response);
             });
     }
 
