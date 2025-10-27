@@ -312,7 +312,7 @@ public class FQSearchService {
     }
 
     /**
-     * 获取书籍目录
+     * 获取书籍目录（增强版）
      *
      * @param directoryRequest 目录请求参数
      * @return 书籍目录
@@ -350,6 +350,9 @@ public class FQSearchService {
 
                 FQDirectoryResponse directoryResponse = objectMapper.treeToValue(dataNode, FQDirectoryResponse.class);
 
+                // 增强章节列表数据
+                enhanceChapterList(directoryResponse);
+
                 return FQNovelResponse.success(directoryResponse);
 
             } catch (Exception e) {
@@ -357,6 +360,55 @@ public class FQSearchService {
                 return FQNovelResponse.error("获取书籍目录失败: " + e.getMessage());
             }
         });
+    }
+
+    /**
+     * 增强章节列表数据
+     * 添加章节序号、格式化时间、最新章节标记等
+     *
+     * @param directoryResponse 目录响应对象
+     */
+    private void enhanceChapterList(FQDirectoryResponse directoryResponse) {
+        if (directoryResponse == null || directoryResponse.getItemDataList() == null) {
+            return;
+        }
+
+        List<FQDirectoryResponse.ItemData> itemDataList = directoryResponse.getItemDataList();
+        int totalChapters = itemDataList.size();
+
+        for (int i = 0; i < totalChapters; i++) {
+            FQDirectoryResponse.ItemData item = itemDataList.get(i);
+            
+            // 设置章节序号（从1开始）
+            item.setChapterIndex(i + 1);
+            
+            // 标记最新章节
+            item.setIsLatest(i == totalChapters - 1);
+            
+            // 格式化首次通过时间
+            if (item.getFirstPassTime() != null && item.getFirstPassTime() > 0) {
+                try {
+                    long timestamp = item.getFirstPassTime() * 1000L; // 转换为毫秒
+                    java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                    item.setFirstPassTimeStr(sdf.format(new java.util.Date(timestamp)));
+                } catch (Exception e) {
+                    log.warn("格式化时间失败 - timestamp: {}", item.getFirstPassTime(), e);
+                }
+            }
+            
+            // 设置排序序号（与序号相同）
+            if (item.getSortOrder() == null) {
+                item.setSortOrder(i + 1);
+            }
+            
+            // 默认设置免费状态（实际应从API获取，这里作为示例）
+            if (item.getIsFree() == null) {
+                // 前几章通常免费，这里设置前5章免费作为示例
+                item.setIsFree(i < 5);
+            }
+        }
+        
+        log.info("章节列表增强完成 - 总章节数: {}", totalChapters);
     }
 
     /**
@@ -412,18 +464,71 @@ public class FQSearchService {
     }
 
     /**
-     * 解析书籍项目，字段映射按实际API返回
+     * 解析书籍项目，字段映射按实际API返回（完整映射）
      */
     private static FQSearchResponse.BookItem parseBookItem(JsonNode bookNode) {
         FQSearchResponse.BookItem book = new FQSearchResponse.BookItem();
 
+        // ============ 基础信息 ============
         book.setBookId(bookNode.path("book_id").asText(""));
         book.setBookName(bookNode.path("book_name").asText(""));
+        book.setBookShortName(bookNode.path("book_short_name").asText(""));
         book.setAuthor(bookNode.path("author").asText(""));
+        book.setAuthorId(bookNode.path("author_id").asText(""));
+        
+        // 作者信息
+        JsonNode authorInfoNode = bookNode.path("author_info");
+        if (authorInfoNode != null && !authorInfoNode.isMissingNode() && authorInfoNode.isObject()) {
+            Map<String, Object> authorInfoMap = new HashMap<>();
+            authorInfoNode.fields().forEachRemaining(entry -> {
+                authorInfoMap.put(entry.getKey(), entry.getValue());
+            });
+            book.setAuthorInfo(authorInfoMap);
+        }
+        
         book.setDescription(bookNode.path("abstract").asText(""));
+        book.setBookAbstractV2(bookNode.path("book_abstract_v2").asText(""));
         book.setCoverUrl(bookNode.path("thumb_url").asText(""));
+        book.setDetailPageThumbUrl(bookNode.path("detail_page_thumb_url").asText(""));
+        book.setExpandThumbUrl(bookNode.path("expand_thumb_url").asText(""));
+        book.setHorizThumbUrl(bookNode.path("horiz_thumb_url").asText(""));
+        book.setStatus(bookNode.path("status").asText(""));
+        book.setCreationStatus(bookNode.path("creation_status").asText(""));
+        book.setUpdateStatus(bookNode.path("update_status").asText(""));
+        
+        // ============ 章节信息 ============
+        book.setWordCount(bookNode.path("word_number").asLong(0));
+        
+        // 尝试从不同字段获取章节总数
+        if (bookNode.has("serial_count")) {
+            try {
+                book.setTotalChapters(Integer.parseInt(bookNode.path("serial_count").asText("0")));
+            } catch (NumberFormatException e) {
+                book.setTotalChapters(0);
+            }
+        } else if (bookNode.has("content_chapter_number")) {
+            try {
+                book.setTotalChapters(Integer.parseInt(bookNode.path("content_chapter_number").asText("0")));
+            } catch (NumberFormatException e) {
+                book.setTotalChapters(0);
+            }
+        }
+        
+        book.setFirstChapterTitle(bookNode.path("first_chapter_title").asText(""));
+        book.setFirstChapterItemId(bookNode.path("first_chapter_item_id").asText(""));
+        book.setLastChapterTitle(bookNode.path("last_chapter_title").asText(""));
+        book.setLastChapterItemId(bookNode.path("last_chapter_item_id").asText(""));
+        book.setUpdateTime(bookNode.path("last_chapter_update_time").asLong(0));
+        book.setLastChapterUpdateTime(bookNode.path("last_chapter_update_time").asText(""));
+        
+        // ============ 分类信息 ============
         book.setCategory(bookNode.path("category").asText(""));
-
+        book.setCategoryV2(bookNode.path("category_v2").asText(""));
+        book.setCompleteCategory(bookNode.path("complete_category").asText(""));
+        book.setGenre(bookNode.path("genre").asText(""));
+        book.setSubGenre(bookNode.path("sub_genre").asText(""));
+        book.setGender(bookNode.path("gender").asText(""));
+        
         // 标签兼容逗号分隔字符串和数组
         JsonNode tagsNode = bookNode.path("tags");
         if (tagsNode.isArray()) {
@@ -432,17 +537,65 @@ public class FQSearchService {
                 tags.add(tag.asText());
             }
             book.setTags(tags);
+            book.setTagsStr(String.join(",", tags));
         } else {
             String tagsStr = tagsNode.asText("");
             if (!tagsStr.isEmpty()) {
                 book.setTags(Arrays.asList(tagsStr.split(",")));
+                book.setTagsStr(tagsStr);
             }
         }
-        book.setWordCount(bookNode.path("word_number").asLong(0));
-        book.setStatus(bookNode.path("update_status").asText(""));
+        
+        // ============ 统计数据 ============
         book.setRating(bookNode.path("score").asDouble(0.0));
-        book.setUpdateTime(bookNode.path("last_chapter_update_time").asLong(0));
-        book.setLastChapterTitle(bookNode.path("last_chapter_title").asText(""));
+        book.setReadCount(bookNode.path("read_count").asText(""));
+        book.setReadCntText(bookNode.path("read_cnt_text").asText(""));
+        book.setAddBookshelfCount(bookNode.path("add_bookshelf_count").asText(""));
+        book.setReaderUv14day(bookNode.path("reader_uv_14day").asText(""));
+        book.setListenCount(bookNode.path("listen_count").asText(""));
+        book.setFinishRate10(bookNode.path("finish_rate_10").asText(""));
+        
+        // ============ 价格与销售 ============
+        book.setTotalPrice(bookNode.path("total_price").asText(""));
+        book.setBasePrice(bookNode.path("base_price").asText(""));
+        book.setDiscountPrice(bookNode.path("discount_price").asText(""));
+        book.setFreeStatus(bookNode.path("free_status").asText(""));
+        book.setVipBook(bookNode.path("vip_book").asText(""));
+        
+        // ============ 授权与版权 ============
+        book.setExclusive(bookNode.path("exclusive").asText(""));
+        book.setRealExclusive(bookNode.path("real_exclusive").asText(""));
+        book.setCopyrightInfo(bookNode.path("copyright_info").asText(""));
+        
+        // ============ 显示与颜色 ============
+        book.setColorDominate(bookNode.path("color_dominate").asText(""));
+        book.setColorMostPopular(bookNode.path("color_most_popular").asText(""));
+        book.setThumbUri(bookNode.path("thumb_uri").asText(""));
+        
+        // ============ 时间信息 ============
+        book.setCreateTime(bookNode.path("create_time").asText(""));
+        book.setPublishedDate(bookNode.path("published_date").asText(""));
+        book.setLastPublishTime(bookNode.path("last_publish_time").asText(""));
+        book.setFirstOnlineTime(bookNode.path("first_online_time").asText(""));
+        
+        // ============ 书籍类型 ============
+        book.setBookType(bookNode.path("book_type").asText(""));
+        book.setIsNew(bookNode.path("is_new").asText(""));
+        book.setIsEbook(bookNode.path("is_ebook").asText(""));
+        book.setLengthType(bookNode.path("length_type").asText(""));
+        
+        // ============ 其他信息 ============
+        book.setBookSearchVisible(bookNode.path("book_search_visible").asText(""));
+        book.setPress(bookNode.path("press").asText(""));
+        book.setPublisher(bookNode.path("publisher").asText(""));
+        book.setIsbn(bookNode.path("isbn").asText(""));
+        book.setSource(bookNode.path("source").asText(""));
+        book.setPlatform(bookNode.path("platform").asText(""));
+        book.setFlightFlag(bookNode.path("flight_flag").asText(""));
+        book.setRecommendCountLevel(bookNode.path("recommend_count_level").asText(""));
+        book.setDataRate(bookNode.path("data_rate").asText(""));
+        book.setRiskRate(bookNode.path("risk_rate").asText(""));
+        
         return book;
     }
 

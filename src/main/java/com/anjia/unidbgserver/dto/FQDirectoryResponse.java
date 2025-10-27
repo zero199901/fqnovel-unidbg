@@ -77,10 +77,15 @@ public class FQDirectoryResponse {
         private String itemId;
     }
 
+    /**
+     * 章节详细数据（优化版）
+     */
     @Data
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class ItemData {
 
+        // ============ 基础信息 ============
+        
         /**
          * 章节ID
          */
@@ -88,38 +93,29 @@ public class FQDirectoryResponse {
         private String itemId;
 
         /**
-         * 版本信息
-         */
-        private String version;
-
-        /**
-         * 内容MD5
-         */
-        @JsonProperty("content_md5")
-        private String contentMd5;
-
-        /**
-         * 首次通过时间
-         */
-        @JsonProperty("first_pass_time")
-        private Integer firstPassTime;
-
-        /**
          * 章节标题
          */
         private String title;
 
         /**
-         * 卷名
+         * 章节序号（从1开始，由服务端计算）
+         */
+        @JsonProperty("chapter_index")
+        private Integer chapterIndex;
+
+        /**
+         * 卷名/分组名称
          */
         @JsonProperty("volume_name")
         private String volumeName;
 
         /**
-         * 章节类型
+         * 章节类型 (0=正文, 1=番外等)
          */
         @JsonProperty("chapter_type")
         private String chapterType;
+
+        // ============ 内容信息 ============
 
         /**
          * 章节字数
@@ -128,10 +124,107 @@ public class FQDirectoryResponse {
         private Integer chapterWordNumber;
 
         /**
+         * 版本信息
+         */
+        private String version;
+
+        /**
+         * 内容MD5校验值
+         */
+        @JsonProperty("content_md5")
+        private String contentMd5;
+
+        // ============ 状态信息 ============
+
+        /**
          * 是否为审核章节
          */
         @JsonProperty("is_review")
         private Boolean isReview;
+
+        /**
+         * 是否免费
+         */
+        @JsonProperty("is_free")
+        private Boolean isFree;
+
+        /**
+         * 是否已购买
+         */
+        @JsonProperty("is_purchased")
+        private Boolean isPurchased;
+
+        /**
+         * 是否锁定
+         */
+        @JsonProperty("is_locked")
+        private Boolean isLocked;
+
+        // ============ 时间信息 ============
+
+        /**
+         * 首次通过时间（时间戳）
+         */
+        @JsonProperty("first_pass_time")
+        private Integer firstPassTime;
+
+        /**
+         * 首次通过时间（格式化字符串，由服务端计算）
+         */
+        @JsonProperty("first_pass_time_str")
+        private String firstPassTimeStr;
+
+        /**
+         * 发布时间
+         */
+        @JsonProperty("publish_time")
+        private Long publishTime;
+
+        /**
+         * 更新时间
+         */
+        @JsonProperty("update_time")
+        private Long updateTime;
+
+        // ============ 价格信息 ============
+
+        /**
+         * 章节价格
+         */
+        @JsonProperty("price")
+        private Integer price;
+
+        /**
+         * 折扣价格
+         */
+        @JsonProperty("discount_price")
+        private Integer discountPrice;
+
+        // ============ 其他信息 ============
+
+        /**
+         * 章节组ID
+         */
+        @JsonProperty("group_id")
+        private String groupId;
+
+        /**
+         * 排序序号
+         */
+        @JsonProperty("sort_order")
+        private Integer sortOrder;
+
+        /**
+         * 是否为最新章节（由服务端计算）
+         */
+        @JsonProperty("is_latest")
+        private Boolean isLatest;
+
+        /**
+         * 阅读进度（由客户端提供）
+         */
+        @JsonProperty("read_progress")
+        private Integer readProgress;
     }
 
     @Data
