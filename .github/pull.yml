@@ -1,10 +1,10 @@
-version: "1"
+version: '1'
 rules:
-  - base: main
-    upstream: main
-    autoMerge: true
-    autoMergeHardReset: false
-  - base: master
-    upstream: master
-    autoMerge: true
-    autoMergeHardReset: false
+- base: main
+  upstream: buding9527:main
+  mergeMethod: merge
+  mergeUnstable: false
+- base: master
+  upstream: master
+  autoMerge: true
+  autoMergeHardReset: false
